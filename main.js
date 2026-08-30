@@ -1,5 +1,4 @@
-// ⚠️ 1단계에서 복사한 최신 웹앱 주소를 아래 따옴표 안에 넣어주세요!
-const API_URL = "https://script.google.com/macros/s/AKfycbzKYeJigpvclCwWKCmgXyYJdiSVZSOfO8ER-Vn6sbZXLImDYa5wYbJEz7MwFVVsHavIfg/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwh7SouQXxArlKFzdzUa1NAgvdwKb7bXgeMV43OXDOEUkHzDItbWmFhdFMT0slZQN1YTQ/exec";
 
 let currentUser = "";
 let userList = [];
@@ -44,7 +43,9 @@ function init() {
   
   fetchSheetData();
 
-  btnRegisterMain.addEventListener("click", promptNewUser);
+  if (btnRegisterMain) {
+    btnRegisterMain.addEventListener("click", promptNewUser);
+  }
 
   monthPicker.addEventListener("change", (e) => {
     currentYearMonth = e.target.value;
@@ -65,13 +66,29 @@ function init() {
   });
 }
 
+// 닉네임 유효성 검사 (날짜 포맷 및 더미 제외)
+function isValidCrewName(name) {
+  if (!name || typeof name !== "string") return false;
+  const trimmed = name.trim();
+  if (trimmed === "" || trimmed === "null" || trimmed === "undefined") return false;
+  
+  const dummyNames = ["크루 1", "크루 2", "크루 3", "크루1", "크루2", "크루3", "미지정크루"];
+  if (dummyNames.includes(trimmed)) return false;
+
+  // 날짜 문자열 패턴 필터링 (Mon Aug 03..., 2026-08... 등)
+  if (trimmed.includes("GMT") || trimmed.includes("표준시") || /^\d{4}[-/.]\d{2}/.test(trimmed)) {
+    return false;
+  }
+  return true;
+}
+
 function updateViewVisibility() {
   if (!currentUser) {
-    emptyCrewSection.style.display = "block";
-    mainContentSection.style.display = "none";
+    if (emptyCrewSection) emptyCrewSection.style.display = "block";
+    if (mainContentSection) mainContentSection.style.display = "none";
   } else {
-    emptyCrewSection.style.display = "none";
-    mainContentSection.style.display = "block";
+    if (emptyCrewSection) emptyCrewSection.style.display = "none";
+    if (mainContentSection) mainContentSection.style.display = "block";
   }
   renderCrewTabs();
   updateCrewLabels();
@@ -79,7 +96,7 @@ function updateViewVisibility() {
 
 function promptNewUser() {
   const name = prompt("본인의 크루 닉네임(또는 이름)을 입력해 주세요:");
-  if (name && name.trim()) {
+  if (name && name.trim() && isValidCrewName(name)) {
     const cleanName = name.trim();
     if (!userList.includes(cleanName)) {
       userList.push(cleanName);
@@ -91,6 +108,8 @@ function promptNewUser() {
     renderCalendar();
     calculateAll();
     fetchSheetData();
+  } else if (name) {
+    alert("올바른 닉네임을 입력해 주세요.");
   }
 }
 
@@ -125,18 +144,17 @@ function renderCrewTabs() {
 }
 
 function updateCrewLabels() {
-  currentCrewName.textContent = currentUser || "-";
-  tableCrewName.textContent = currentUser || "-";
+  if (currentCrewName) currentCrewName.textContent = currentUser || "-";
+  if (tableCrewName) tableCrewName.textContent = currentUser || "-";
 }
 
 function loadUsers() {
-  const dummyNames = ["크루 1", "크루 2", "크루 3", "크루1", "크루2", "크루3"];
   const savedUsers = localStorage.getItem("mcrew_user_list");
   
   if (savedUsers) {
     try {
       const parsed = JSON.parse(savedUsers);
-      userList = Array.isArray(parsed) ? parsed.filter(u => !dummyNames.includes(u.trim())) : [];
+      userList = Array.isArray(parsed) ? parsed.filter(isValidCrewName) : [];
     } catch (e) {
       userList = [];
     }
@@ -145,7 +163,7 @@ function loadUsers() {
   }
 
   const lastUser = localStorage.getItem("mcrew_last_user");
-  if (lastUser && userList.includes(lastUser) && !dummyNames.includes(lastUser.trim())) {
+  if (lastUser && userList.includes(lastUser) && isValidCrewName(lastUser)) {
     currentUser = lastUser;
   } else if (userList.length > 0) {
     currentUser = userList[0];
@@ -155,6 +173,7 @@ function loadUsers() {
 }
 
 function saveUsers() {
+  userList = userList.filter(isValidCrewName);
   localStorage.setItem("mcrew_user_list", JSON.stringify(userList));
   localStorage.setItem("mcrew_last_user", currentUser);
 }
@@ -198,12 +217,11 @@ async function fetchSheetData() {
     const res = await fetch(url);
     const result = await res.json();
     if (result.status === "success") {
-      const dummyNames = ["크루 1", "크루 2", "크루 3", "크루1", "크루2", "크루3"];
       if (result.users && result.users.length > 0) {
         let added = false;
         result.users.forEach(u => {
           const cleanU = String(u).trim();
-          if (cleanU && !dummyNames.includes(cleanU) && !userList.includes(cleanU)) {
+          if (isValidCrewName(cleanU) && !userList.includes(cleanU)) {
             userList.push(cleanU);
             added = true;
           }
@@ -241,7 +259,6 @@ async function fetchSheetData() {
   }
 }
 
-// 구글 시트로 데이터 전송
 function syncDayToSheet(dateStr) {
   if (!currentUser) return;
 
@@ -254,11 +271,9 @@ function syncDayToSheet(dateStr) {
 
   syncDebounceTimers[dateStr] = setTimeout(async () => {
     const record = monthData[dateStr] || {};
-    
-    // 시트의 1열부터 9열까지 매칭될 데이터
     const payload = {
-      user: currentUser, // 1열: 크루 닉네임
-      date: dateStr,     // 2열: 일자
+      user: currentUser,
+      date: dateStr,
       type: record.type || "정상",
       start: record.start || "",
       end: record.end || "",
@@ -267,8 +282,6 @@ function syncDayToSheet(dateStr) {
       yearMonth: currentYearMonth,
       targetHours: targetHours
     };
-
-    console.log("👉 시트로 전송하는 데이터:", payload);
 
     try {
       await fetch(API_URL, {
