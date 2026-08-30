@@ -66,20 +66,20 @@ async function init() {
     calculateAll();
   }
   
-  // 구글 시트에서 최신 데이터 및 크루 목록 강제 로드
+  // 시트 데이터 호출 및 화면 복원
   await fetchSheetData();
 
   if (btnRegisterMain) {
     btnRegisterMain.addEventListener("click", promptNewUser);
   }
 
-  monthPicker.addEventListener("change", (e) => {
+  monthPicker.addEventListener("change", async (e) => {
     currentYearMonth = e.target.value;
     if (currentUser) {
       loadLocalStorage();
       renderCalendar();
       calculateAll();
-      fetchSheetData();
+      await fetchSheetData();
     }
   });
 
@@ -161,7 +161,7 @@ function renderCrewTabs() {
     nameBtn.type = "button";
     nameBtn.className = "crew-tab-name";
     nameBtn.textContent = `👤 ${user}`;
-    nameBtn.addEventListener("click", () => {
+    nameBtn.addEventListener("click", async () => {
       if (currentUser !== user) {
         currentUser = user;
         saveUsers();
@@ -169,7 +169,7 @@ function renderCrewTabs() {
         loadLocalStorage();
         renderCalendar();
         calculateAll();
-        fetchSheetData();
+        await fetchSheetData();
       }
     });
 
@@ -315,9 +315,9 @@ function cleanTimeFormat(timeStr) {
   return "";
 }
 
-// 구글 시트에서 데이터 가져오기 (커밋/새로고침 후에도 시트 데이터 강제 복원)
+// 구글 시트에서 최신 데이터 조회 및 화면 즉시 렌더링
 async function fetchSheetData() {
-  syncStatusEl.textContent = "🍟 주문 접수 중...";
+  syncStatusEl.textContent = "🍟 데이터 불러오는 중...";
   syncStatusEl.className = "sync-badge saving";
 
   try {
@@ -330,7 +330,7 @@ async function fetchSheetData() {
     const result = await res.json();
     
     if (result.status === "success") {
-      // 1. 서버의 크루 목록 동기화
+      // 1. 유저 목록 동기화
       if (result.users && result.users.length > 0) {
         let added = false;
         result.users.forEach(u => {
@@ -343,7 +343,6 @@ async function fetchSheetData() {
         if (added) {
           saveUsers();
         }
-        // 만약 currentUser가 비어있다면 첫 번째 크루 자동 선택
         if (!currentUser && userList.length > 0) {
           currentUser = userList[0];
           saveUsers();
@@ -351,7 +350,7 @@ async function fetchSheetData() {
         updateViewVisibility();
       }
 
-      // 2. 서버 데이터 파싱 후 반영
+      // 2. 구글 시트 데이터 로컬 반영
       if (result.data) {
         const formattedData = {};
         Object.keys(result.data).forEach(dateKey => {
@@ -364,11 +363,8 @@ async function fetchSheetData() {
             totalHours: Number(item.totalHours) || 0
           };
         });
-        
-        // 서버에 데이터가 있으면 서버 데이터로 교체
-        if (Object.keys(formattedData).length > 0) {
-          monthData = formattedData;
-        }
+
+        monthData = formattedData;
       }
 
       if (result.targetHours) {
@@ -382,7 +378,7 @@ async function fetchSheetData() {
         calculateAll();
       }
 
-      syncStatusEl.textContent = "🍔 동기화 완료";
+      syncStatusEl.textContent = "🍔 시트 불러오기 완료";
       syncStatusEl.className = "sync-badge";
     }
   } catch (err) {
