@@ -23,7 +23,7 @@ const targetHoursInput = document.getElementById("targetHours");
 const tableBody = document.getElementById("workTableBody");
 const totalWorkedEl = document.getElementById("totalWorked");
 
-// 연장근로 및 카드 관련 DOM
+// 연장근로 DOM
 const cardRemainingHours = document.getElementById("cardRemainingHours");
 const titleRemainingHours = document.getElementById("titleRemainingHours");
 const remainingHoursEl = document.getElementById("remainingHours");
@@ -49,6 +49,7 @@ function init() {
     calculateAll();
   }
   
+  // 모바일/PC 상관없이 초기화 시 구글 시트 최신 데이터 강제 로드
   fetchSheetData();
 
   if (btnRegisterMain) {
@@ -220,6 +221,7 @@ function updateCrewLabels() {
 
 function loadUsers() {
   const savedUsers = localStorage.getItem("mcrew_user_list");
+  
   if (savedUsers) {
     try {
       const parsed = JSON.parse(savedUsers);
@@ -274,18 +276,23 @@ function saveLocalStorage() {
   saveUsers();
 }
 
+// 모바일 캐시 무효화 및 데이터 완벽 동기화
 async function fetchSheetData() {
   syncStatusEl.textContent = "🍟 주문 접수 중...";
   syncStatusEl.className = "sync-badge saving";
 
   try {
+    // timestamp 캐시 방지 파라미터 추가
+    const cacheBuster = `&_t=${Date.now()}`;
     const url = currentUser 
-      ? `${API_URL}?user=${encodeURIComponent(currentUser)}&month=${currentYearMonth}`
-      : API_URL;
+      ? `${API_URL}?user=${encodeURIComponent(currentUser)}&month=${currentYearMonth}${cacheBuster}`
+      : `${API_URL}?_t=${Date.now()}`;
 
-    const res = await fetch(url);
+    const res = await fetch(url, { cache: "no-store" });
     const result = await res.json();
+    
     if (result.status === "success") {
+      // 1. 서버의 모든 크루 목록 병합
       if (result.users && result.users.length > 0) {
         let added = false;
         result.users.forEach(u => {
@@ -297,15 +304,16 @@ async function fetchSheetData() {
         });
         if (added) {
           saveUsers();
-          if (!currentUser && userList.length > 0) {
-            currentUser = userList[0];
-          }
-          updateViewVisibility();
         }
+        if (!currentUser && userList.length > 0) {
+          currentUser = userList[0];
+        }
+        updateViewVisibility();
       }
 
+      // 2. 서버 데이터로 로컬 상태 덮어쓰기 및 화면 즉시 갱신
       if (currentUser && result.data) {
-        monthData = { ...monthData, ...result.data };
+        monthData = { ...result.data };
       }
       if (result.targetHours) {
         targetHours = result.targetHours;
@@ -368,7 +376,7 @@ function syncDayToSheet(dateStr) {
   }, 600);
 }
 
-// 캘린더 렌더링 (말일 -> 1일 역순)
+// 캘린더 렌더링 (말일부터 1일까지 역순 정렬)
 function renderCalendar() {
   tableBody.innerHTML = "";
   if (!currentUser) return;
@@ -496,7 +504,6 @@ function attachTableEvents() {
   });
 }
 
-// 종합 계산 및 연장근로 예측 로직
 function calculateAll() {
   if (!currentUser) return;
 
@@ -541,23 +548,19 @@ function calculateAll() {
 
     totalWorked += dayHours;
 
-    // 오늘 이후 남은 평일(정상근무 예정일) 카운트 (미래 날짜 및 입력되지 않은 날짜)
     const isFuture = isCurrentMonth ? day > todayDate : false;
     if (isFuture && !isWeekend && record.type !== "휴일" && record.type !== "연차") {
       remainingWorkdaysCount++;
     }
   }
 
-  // 1. 현재 누적 시간 렌더링
   totalWorkedEl.textContent = totalWorked.toFixed(1);
 
-  // 2. 현재 초과 여부 판단
   const isOverTarget = totalWorked >= targetHours;
   const currentOvertime = Math.max(0, totalWorked - targetHours);
   const remainingToTarget = Math.max(0, targetHours - totalWorked);
 
   if (isOverTarget) {
-    // 목표 초과 시 카드 2번을 '연장근로(초과) 시간'으로 변경
     titleRemainingHours.textContent = "🔥 현재 연장근로(초과) 시간";
     remainingHoursEl.textContent = `+${currentOvertime.toFixed(1)}`;
     cardRemainingHours.className = "metric-card overtime-card";
@@ -569,7 +572,6 @@ function calculateAll() {
     remainingStatus.textContent = `목표까지 ${remainingToTarget.toFixed(1)}시간 남음`;
   }
 
-  // 3. 남은 평일에 8시간씩 근무할 경우의 예상 최종 연장근로시간 계산
   const futureStandardWorked = remainingWorkdaysCount * 8;
   const projectedTotalHours = totalWorked + futureStandardWorked;
   const expectedOvertime = projectedTotalHours - targetHours;
@@ -582,7 +584,6 @@ function calculateAll() {
     expectedOvertimeDescEl.textContent = `남은 평일 ${remainingWorkdaysCount}일 근무 시 목표 내 완료`;
   }
 
-  // 4. 연장근로신청 알림 배너 표시 여부 (이미 초과했거나 남은 기간 8h 근무 시 초과 예상될 때)
   if (isOverTarget || expectedOvertime > 0) {
     overtimeAlertBanner.style.display = "flex";
     if (isOverTarget) {
