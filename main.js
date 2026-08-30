@@ -130,15 +130,23 @@ function updateCrewLabels() {
 }
 
 function loadUsers() {
+  const dummyNames = ["크루 1", "크루 2", "크루 3", "크루1", "크루2", "크루3"];
   const savedUsers = localStorage.getItem("mcrew_user_list");
+  
   if (savedUsers) {
-    userList = JSON.parse(savedUsers);
+    try {
+      const parsed = JSON.parse(savedUsers);
+      // 예전 더미 데이터(크루 1,2,3) 필터링 제거
+      userList = Array.isArray(parsed) ? parsed.filter(u => !dummyNames.includes(u.trim())) : [];
+    } catch (e) {
+      userList = [];
+    }
   } else {
     userList = [];
   }
 
   const lastUser = localStorage.getItem("mcrew_last_user");
-  if (lastUser && userList.includes(lastUser)) {
+  if (lastUser && userList.includes(lastUser) && !dummyNames.includes(lastUser.trim())) {
     currentUser = lastUser;
   } else if (userList.length > 0) {
     currentUser = userList[0];
@@ -191,11 +199,13 @@ async function fetchSheetData() {
     const res = await fetch(url);
     const result = await res.json();
     if (result.status === "success") {
+      const dummyNames = ["크루 1", "크루 2", "크루 3", "크루1", "크루2", "크루3"];
       if (result.users && result.users.length > 0) {
         let added = false;
         result.users.forEach(u => {
-          if (!userList.includes(u)) {
-            userList.push(u);
+          const cleanU = String(u).trim();
+          if (cleanU && !dummyNames.includes(cleanU) && !userList.includes(cleanU)) {
+            userList.push(cleanU);
             added = true;
           }
         });
