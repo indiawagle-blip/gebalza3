@@ -23,6 +23,11 @@ const targetHoursInput = document.getElementById("targetHours");
 const tableBody = document.getElementById("workTableBody");
 const totalWorkedEl = document.getElementById("totalWorked");
 
+// ⚡ 퀵 출퇴근 DOM
+const todayDateDisplay = document.getElementById("todayDateDisplay");
+const btnQuickIn = document.getElementById("btnQuickIn");
+const btnQuickOut = document.getElementById("btnQuickOut");
+
 // 연장근로 & 계획 시뮬레이션 DOM
 const cardRemainingHours = document.getElementById("cardRemainingHours");
 const titleRemainingHours = document.getElementById("titleRemainingHours");
@@ -42,6 +47,68 @@ const syncStatusEl = document.getElementById("syncStatus");
 const currentCrewName = document.getElementById("currentCrewName");
 const tableCrewName = document.getElementById("tableCrewName");
 
+// 현재 시각 가져오기 (HH:mm)
+function getCurrentTimeString() {
+  const d = new Date();
+  const h = String(d.getHours()).padStart(2, "0");
+  const m = String(d.getMinutes()).padStart(2, "0");
+  return `${h}:${m}`;
+}
+
+// 오늘 날짜 포맷 (YYYY-MM-DD)
+function getTodayDateString() {
+  const d = new Date();
+  const yr = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, "0");
+  const da = String(d.getDate()).padStart(2, "0");
+  return `${yr}-${mo}-${da}`;
+}
+
+// ⚡ 오늘 출근/퇴근 원클릭 등록
+function punchTime(type) {
+  if (!currentUser) {
+    alert("먼저 크루 닉네임을 선택하거나 등록해 주세요.");
+    return;
+  }
+
+  const todayStr = getTodayDateString();
+  const todayMonth = todayStr.substring(0, 7);
+
+  // 만약 조회 중인 월과 오늘 월이 다르면 오늘 월로 변경
+  if (currentYearMonth !== todayMonth) {
+    currentYearMonth = todayMonth;
+    monthPicker.value = todayMonth;
+    loadLocalStorage();
+    renderCalendar();
+  }
+
+  const timeStr = getCurrentTimeString();
+  const currentRecord = monthData[todayStr] || {
+    type: "정상",
+    start: "",
+    end: "",
+    breakMin: 60,
+    totalHours: 0
+  };
+
+  if (type === "IN") {
+    currentRecord.start = timeStr;
+    if (currentRecord.type === "휴일") currentRecord.type = "정상";
+  } else if (type === "OUT") {
+    currentRecord.end = timeStr;
+    if (currentRecord.type === "휴일") currentRecord.type = "정상";
+  }
+
+  monthData[todayStr] = currentRecord;
+  saveLocalStorage();
+  renderCalendar();
+  calculateAll();
+  syncDayToSheet(todayStr);
+
+  const actionName = type === "IN" ? "출근" : "퇴근";
+  alert(`🍟 [${todayStr}] ${actionName} 시간이 [${timeStr}] 로 등록되었습니다!`);
+}
+
 function runMiniCalculator() {
   if (!calcHourlyWageInput || !calcOvertimeHoursInput || !calcResultAmountEl) return;
   const rawWage = String(calcHourlyWageInput.value).replace(/,/g, "").trim();
@@ -57,6 +124,12 @@ function runMiniCalculator() {
 async function init() {
   monthPicker.value = currentYearMonth;
   
+  // 오늘 날짜 헤더 표시
+  if (todayDateDisplay) {
+    const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
+    todayDateDisplay.textContent = `(${now.getMonth() + 1}월 ${now.getDate()}일 ${dayNames[now.getDay()]}요일)`;
+  }
+
   loadUsers();
   updateViewVisibility();
 
@@ -66,12 +139,15 @@ async function init() {
     calculateAll();
   }
   
-  // 구글 시트에서 최신 데이터 가져와 화면 렌더링
   await fetchSheetData();
 
   if (btnRegisterMain) {
     btnRegisterMain.addEventListener("click", promptNewUser);
   }
+
+  // ⚡ 퀵 버튼 이벤트
+  if (btnQuickIn) btnQuickIn.addEventListener("click", () => punchTime("IN"));
+  if (btnQuickOut) btnQuickOut.addEventListener("click", () => punchTime("OUT"));
 
   monthPicker.addEventListener("change", async (e) => {
     currentYearMonth = e.target.value;
@@ -315,7 +391,6 @@ function cleanTimeFormat(timeStr) {
   return "";
 }
 
-// 구글 시트 데이터 로드 및 렌더링
 async function fetchSheetData() {
   syncStatusEl.textContent = "🍟 데이터 불러오는 중...";
   syncStatusEl.className = "sync-badge saving";
@@ -330,7 +405,6 @@ async function fetchSheetData() {
     const result = await res.json();
     
     if (result.status === "success") {
-      // 1. 유저 목록 동기화
       if (result.users && result.users.length > 0) {
         let added = false;
         result.users.forEach(u => {
@@ -350,7 +424,6 @@ async function fetchSheetData() {
         updateViewVisibility();
       }
 
-      // 2. 시트 데이터 파싱 및 로컬 데이터와 안전하게 병합
       if (result.data) {
         const formattedData = {};
         Object.keys(result.data).forEach(dateKey => {
@@ -364,7 +437,6 @@ async function fetchSheetData() {
           };
         });
 
-        // 서버 데이터가 비어있지 않은 경우에만 로컬 데이터에 덮어씀 (데이터 유실 방지)
         if (Object.keys(formattedData).length > 0) {
           monthData = formattedData;
         }
@@ -483,8 +555,18 @@ function renderCalendar() {
           <option value="휴일" ${record.type === "휴일" ? "selected" : ""}>☕ 휴일/주말</option>
         </select>
       </td>
-      <td><input type="time" data-date="${dateStr}" class="start-time" value="${record.start || ""}" ${isOff ? "disabled" : ""}></td>
-      <td><input type="time" data-date="${dateStr}" class="end-time" value="${record.end || ""}" ${isOff ? "disabled" : ""}></td>
+      <td>
+        <div class="time-cell-wrap">
+          <input type="time" data-date="${dateStr}" class="start-time" value="${record.start || ""}" ${isOff ? "disabled" : ""}>
+          ${isToday ? '<button type="button" class="btn-now-mini btn-now-in" title="현재 시각 입력">지금</button>' : ""}
+        </div>
+      </td>
+      <td>
+        <div class="time-cell-wrap">
+          <input type="time" data-date="${dateStr}" class="end-time" value="${record.end || ""}" ${isOff ? "disabled" : ""}>
+          ${isToday ? '<button type="button" class="btn-now-mini btn-now-out" title="현재 시각 입력">지금</button>' : ""}
+        </div>
+      </td>
       <td><input type="number" data-date="${dateStr}" class="break-min" value="${record.breakMin ?? 60}" step="10" min="0" style="width: 60px;" ${isOff ? "disabled" : ""}></td>
       <td><span class="day-total-badge" id="badge-${dateStr}">${(record.totalHours || 0).toFixed(1)}</span> 시간</td>
     `;
@@ -568,6 +650,12 @@ function attachTableEvents() {
       });
     }
   });
+
+  // 오늘 행의 미니 '지금' 버튼 이벤트
+  const miniIn = tableBody.querySelector(".btn-now-in");
+  const miniOut = tableBody.querySelector(".btn-now-out");
+  if (miniIn) miniIn.addEventListener("click", () => punchTime("IN"));
+  if (miniOut) miniOut.addEventListener("click", () => punchTime("OUT"));
 }
 
 function calculateAll() {

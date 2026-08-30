@@ -232,6 +232,103 @@
       padding: 0 20px;
     }
 
+    /* ⚡ 원클릭 퀵 출퇴근 바 */
+    .quick-punch-panel {
+      background: #ffffff;
+      border: 2px solid var(--mcd-yellow);
+      border-radius: 16px;
+      padding: 14px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      box-shadow: 0 4px 12px rgba(255, 199, 44, 0.15);
+    }
+
+    .quick-punch-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Jua', sans-serif;
+      font-size: 1.05rem;
+      color: var(--mcd-black);
+    }
+
+    .quick-punch-time-display {
+      font-size: 0.88rem;
+      color: var(--mcd-gray);
+      font-family: 'Pretendard', sans-serif;
+      font-weight: 600;
+    }
+
+    .quick-punch-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-quick-punch {
+      border: none;
+      padding: 8px 18px;
+      border-radius: 999px;
+      font-family: 'Jua', sans-serif;
+      font-size: 0.95rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+
+    .btn-punch-in {
+      background: var(--mcd-yellow);
+      color: #875c00;
+      box-shadow: 0 3px 0 #d49f10;
+    }
+
+    .btn-punch-in:hover {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 #d49f10;
+    }
+
+    .btn-punch-out {
+      background: var(--mcd-red);
+      color: #ffffff;
+      box-shadow: 0 3px 0 var(--mcd-red-dark);
+    }
+
+    .btn-punch-out:hover {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 var(--mcd-red-dark);
+    }
+
+    /* 테이블 내 원클릭 '지금' 버튼 */
+    .time-cell-wrap {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn-now-mini {
+      background: #f0e6d6;
+      color: #635345;
+      border: none;
+      padding: 3px 6px;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn-now-mini:hover {
+      background: var(--mcd-yellow);
+      color: #7a5300;
+    }
+
     .overtime-alert-banner {
       background: #fff0f0;
       border: 2px solid var(--mcd-red);
@@ -596,7 +693,6 @@
       border-left: 4px solid var(--mcd-yellow);
     }
 
-    /* 미래 계획 입력 행 스타일 */
     .crew-table tr.planned-row {
       background-color: #f2f8fc;
     }
@@ -674,6 +770,18 @@
     </div>
 
     <div id="mainContentSection">
+      <!-- ⚡ 원클릭 퀵 출퇴근 바 -->
+      <div class="quick-punch-panel">
+        <div class="quick-punch-title">
+          <span>⚡ <strong>오늘의 출퇴근</strong></span>
+          <span class="quick-punch-time-display" id="todayDateDisplay"></span>
+        </div>
+        <div class="quick-punch-actions">
+          <button type="button" class="btn-quick-punch btn-punch-in" id="btnQuickIn">🍟 지금 출근</button>
+          <button type="button" class="btn-quick-punch btn-punch-out" id="btnQuickOut">🍔 지금 퇴근</button>
+        </div>
+      </div>
+
       <!-- 연장근로 결재 신청 알림 배너 -->
       <div id="overtimeAlertBanner" class="overtime-alert-banner" style="display: none;">
         <div class="overtime-alert-text">
@@ -693,21 +801,18 @@
         </div>
 
         <div class="metrics-grid">
-          <!-- 1. 현재 실근무 누적 시간 -->
           <div class="metric-card main-burger">
             <span class="metric-title">현재 누적 실근무시간 (오늘까지)</span>
             <div class="metric-val"><strong id="totalWorked">0.0</strong> <span>시간</span></div>
             <p class="metric-desc">연차(+8h) / 반차(+4h) 합산 완료</p>
           </div>
 
-          <!-- 2. 목표 잔여 / 현재 초과 시간 -->
           <div class="metric-card" id="cardRemainingHours">
             <span class="metric-title" id="titleRemainingHours">목표까지 남은 시간</span>
             <div class="metric-val"><strong id="remainingHours">0.0</strong> <span>시간</span></div>
             <p class="metric-desc" id="remainingStatus">계산 중...</p>
           </div>
 
-          <!-- 3. 미래 계획 근무 반영 시 최종 예상 시간 -->
           <div class="metric-card highlight-crew">
             <span class="metric-title">📅 계획 반영 최종 예상 (월말 합산)</span>
             <div class="metric-val"><strong id="expectedOvertimeHours">0.0</strong> <span>시간</span></div>
@@ -747,7 +852,6 @@
         </div>
       </section>
 
-      <!-- 출퇴근 기록표 (내일/모레 시간 입력 시 자동 계획 반영) -->
       <section class="table-panel">
         <div class="panel-head">
           <h2>📋 <span id="tableCrewName">-</span> 님의 출퇴근 기록표 (최신일자순)</h2>
