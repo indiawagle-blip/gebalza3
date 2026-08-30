@@ -23,7 +23,7 @@ const targetHoursInput = document.getElementById("targetHours");
 const tableBody = document.getElementById("workTableBody");
 const totalWorkedEl = document.getElementById("totalWorked");
 
-// 연장근로 DOM
+// 연장근로 & 계획 시뮬레이션 DOM
 const cardRemainingHours = document.getElementById("cardRemainingHours");
 const titleRemainingHours = document.getElementById("titleRemainingHours");
 const remainingHoursEl = document.getElementById("remainingHours");
@@ -42,10 +42,9 @@ const syncStatusEl = document.getElementById("syncStatus");
 const currentCrewName = document.getElementById("currentCrewName");
 const tableCrewName = document.getElementById("tableCrewName");
 
-// 미니 계산기 실행 함수
+// 미니 계산기 로직
 function runMiniCalculator() {
   if (!calcHourlyWageInput || !calcOvertimeHoursInput || !calcResultAmountEl) return;
-  
   const rawWage = String(calcHourlyWageInput.value).replace(/,/g, "").trim();
   const rawHours = String(calcOvertimeHoursInput.value).replace(/,/g, "").trim();
   
@@ -92,7 +91,6 @@ function init() {
     }
   });
 
-  // 미니 계산기 이벤트 (input, change, keyup, blur 모든 상황에서 즉시 계산)
   if (calcHourlyWageInput && calcOvertimeHoursInput) {
     ["input", "change", "keyup", "blur"].forEach(evtName => {
       calcHourlyWageInput.addEventListener(evtName, runMiniCalculator);
@@ -103,7 +101,6 @@ function init() {
       calcOvertimeHoursInput.dataset.touched = "true";
     });
 
-    // 초기 렌더링 시 계산기 즉시 실행
     runMiniCalculator();
   }
 }
@@ -404,12 +401,15 @@ function syncDayToSheet(dateStr) {
   }, 600);
 }
 
+// 캘린더 렌더링 (미래 날짜 입력 시 계획 태그 표시)
 function renderCalendar() {
   tableBody.innerHTML = "";
   if (!currentUser) return;
 
   const [year, month] = currentYearMonth.split("-").map(Number);
   const totalDays = new Date(year, month, 0).getDate();
+  const todayDate = now.getDate();
+  const isCurrentMonth = currentYear === year && Number(currentMonth) === month;
   const todayStr = `${currentYear}-${currentMonth}-${String(now.getDate()).padStart(2, "0")}`;
 
   for (let day = totalDays; day >= 1; day--) {
@@ -420,6 +420,7 @@ function renderCalendar() {
     const dayName = dayOfWeekNames[dayOfWeekNum];
     const isWeekend = dayOfWeekNum === 0 || dayOfWeekNum === 6;
     const isToday = dateStr === todayStr;
+    const isFuture = isCurrentMonth ? day > todayDate : false;
 
     const record = monthData[dateStr] || {
       type: isWeekend ? "휴일" : "정상",
@@ -429,14 +430,21 @@ function renderCalendar() {
       totalHours: 0
     };
 
+    const hasInput = (record.start && record.end) || record.type === "연차" || record.type === "오전반차" || record.type === "오후반차";
+    const isPlanned = isFuture && hasInput;
     const isOff = record.type === "연차" || record.type === "휴일";
 
     const tr = document.createElement("tr");
     if (isWeekend) tr.classList.add("weekend");
     if (isToday) tr.classList.add("today");
+    if (isPlanned) tr.classList.add("planned-row");
 
     tr.innerHTML = `
-      <td><strong>${day}일</strong> (${dayName}) ${isToday ? "📍" : ""}</td>
+      <td>
+        <strong>${day}일</strong> (${dayName}) 
+        ${isToday ? "📍" : ""}
+        ${isPlanned ? '<span class="planned-tag">계획</span>' : ""}
+      </td>
       <td>
         <select data-date="${dateStr}" class="type-select">
           <option value="정상" ${record.type === "정상" ? "selected" : ""}>🍟 정상근무</option>
@@ -498,6 +506,7 @@ function attachTableEvents() {
       breakInput.disabled = isOff;
 
       updateRowData(row, date);
+      renderCalendar();
     });
   });
 
@@ -526,11 +535,13 @@ function attachTableEvents() {
           }
         }
         updateRowData(row, date);
+        renderCalendar();
       });
     }
   });
 }
 
+// 실근무 + 미래 계획시간 시뮬레이션 계산
 function calculateAll() {
   if (!currentUser) return;
 
@@ -539,8 +550,9 @@ function calculateAll() {
   const todayDate = now.getDate();
   const isCurrentMonth = currentYear === year && Number(currentMonth) === month;
 
-  let totalWorked = 0;
-  let remainingWorkdaysCount = 0;
+  let actualWorked = 0;   // 오늘까지의 실근무 누적
+  let plannedWorked = 0;  // 미래 날짜에 직접 계획한 시간 합계
+  let futureEmptyWorkdays = 0; // 아직 계획도 시간도 안 적은 미래 평일 수
 
   for (let day = 1; day <= totalDays; day++) {
     const dateStr = `${currentYearMonth}-${String(day).padStart(2, "0")}`;
@@ -573,25 +585,35 @@ function calculateAll() {
       badge.textContent = dayHours.toFixed(1);
     }
 
-    totalWorked += dayHours;
-
     const isFuture = isCurrentMonth ? day > todayDate : false;
-    if (isFuture && !isWeekend && record.type !== "휴일" && record.type !== "연차") {
-      remainingWorkdaysCount++;
+
+    if (!isFuture) {
+      // 오늘 포함 이전 날짜는 실제 누적시간으로 산정
+      actualWorked += dayHours;
+    } else {
+      // 미래 날짜: 사용자가 직접 시간을 넣었거나 연차/반차로 계획한 경우
+      if (dayHours > 0 || record.type === "연차" || record.type === "오전반차" || record.type === "오후반차") {
+        plannedWorked += dayHours;
+      } else if (!isWeekend && record.type !== "휴일") {
+        // 아직 아무것도 안 적은 평일
+        futureEmptyWorkdays++;
+      }
     }
   }
 
-  totalWorkedEl.textContent = totalWorked.toFixed(1);
+  // 1. 현재 실근무 시간 렌더링
+  totalWorkedEl.textContent = actualWorked.toFixed(1);
 
-  const isOverTarget = totalWorked >= targetHours;
-  const currentOvertime = Math.max(0, totalWorked - targetHours);
-  const remainingToTarget = Math.max(0, targetHours - totalWorked);
+  // 2. 목표 대비 상태 (실근무 기준)
+  const isActualOver = actualWorked >= targetHours;
+  const currentActualOvertime = Math.max(0, actualWorked - targetHours);
+  const remainingToTarget = Math.max(0, targetHours - actualWorked);
 
-  if (isOverTarget) {
-    titleRemainingHours.textContent = "🔥 현재 연장근로(초과) 시간";
-    remainingHoursEl.textContent = `+${currentOvertime.toFixed(1)}`;
+  if (isActualOver) {
+    titleRemainingHours.textContent = "🔥 현재 실근무 초과 시간";
+    remainingHoursEl.textContent = `+${currentActualOvertime.toFixed(1)}`;
     cardRemainingHours.className = "metric-card overtime-card";
-    remainingStatus.textContent = `법정근로 ${targetHours}h 초과 달성 중`;
+    remainingStatus.textContent = `목표(${targetHours}h) 대비 +${currentActualOvertime.toFixed(1)}h 초과 중`;
   } else {
     titleRemainingHours.textContent = "목표까지 남은 시간";
     remainingHoursEl.textContent = remainingToTarget.toFixed(1);
@@ -599,36 +621,42 @@ function calculateAll() {
     remainingStatus.textContent = `목표까지 ${remainingToTarget.toFixed(1)}시간 남음`;
   }
 
-  const futureStandardWorked = remainingWorkdaysCount * 8;
-  const projectedTotalHours = totalWorked + futureStandardWorked;
-  const expectedOvertime = projectedTotalHours - targetHours;
+  // 3. 미래 계획 근무시간을 모두 합산한 '최종 월말 예상 근무시간' 계산
+  // (입력된 계획시간 + 미입력 평일은 기본 8시간으로 가정)
+  const totalProjectedHours = actualWorked + plannedWorked + (futureEmptyWorkdays * 8);
+  const diffFromTarget = totalProjectedHours - targetHours;
 
-  if (expectedOvertime > 0) {
-    expectedOvertimeHoursEl.textContent = `+${expectedOvertime.toFixed(1)}h`;
-    expectedOvertimeDescEl.textContent = `남은 평일 ${remainingWorkdaysCount}일 × 8시간 근무 시`;
+  if (diffFromTarget > 0) {
+    expectedOvertimeHoursEl.textContent = `+${diffFromTarget.toFixed(1)}h 초과`;
+    expectedOvertimeHoursEl.style.color = "var(--mcd-red)";
+    expectedOvertimeDescEl.textContent = `계획 ${plannedWorked.toFixed(1)}h + 미입력 ${futureEmptyWorkdays}일(8h) 반영 시`;
+  } else if (diffFromTarget < 0) {
+    expectedOvertimeHoursEl.textContent = `${Math.abs(diffFromTarget).toFixed(1)}h 부족`;
+    expectedOvertimeHoursEl.style.color = "#0b63b8";
+    expectedOvertimeDescEl.textContent = `계획 ${plannedWorked.toFixed(1)}h + 미입력 ${futureEmptyWorkdays}일(8h) 반영 시`;
   } else {
-    expectedOvertimeHoursEl.textContent = "0.0h";
-    expectedOvertimeDescEl.textContent = `남은 평일 ${remainingWorkdaysCount}일 근무 시 목표 내 완료`;
+    expectedOvertimeHoursEl.textContent = "딱 0.0h (목표 달성)";
+    expectedOvertimeHoursEl.style.color = "#27ae60";
+    expectedOvertimeDescEl.textContent = "목표시간과 정확히 일치합니다! 🍟";
   }
 
-  if (isOverTarget || expectedOvertime > 0) {
+  // 4. 연장근로 알림 배너
+  if (isActualOver || diffFromTarget > 0) {
     overtimeAlertBanner.style.display = "flex";
-    if (isOverTarget) {
-      overtimeAlertMsg.textContent = `현재 목표시간을 ${currentOvertime.toFixed(1)}시간 초과했습니다! 남은 일정(8h 기준) 포함 시 총 +${expectedOvertime.toFixed(1)}시간 연장근로수당 신청이 필요합니다.`;
+    if (isActualOver) {
+      overtimeAlertMsg.textContent = `현재 실근무가 이미 ${currentActualOvertime.toFixed(1)}시간 초과되었습니다! (남은 계획 반영 시 최종 +${diffFromTarget.toFixed(1)}시간 예상)`;
     } else {
-      overtimeAlertMsg.textContent = `남은 평일 정상근무(8h) 시 약 +${expectedOvertime.toFixed(1)}시간 초과 예상됩니다. 사전 연장근로 결재를 준비하세요.`;
+      overtimeAlertMsg.textContent = `내일 이후 계획된 일정을 진행할 경우 최종 약 +${diffFromTarget.toFixed(1)}시간 초과될 예정입니다. 연장근로신청을 미리 올려주세요.`;
     }
   } else {
     overtimeAlertBanner.style.display = "none";
   }
 
-  // 사용자가 직접 수정하지 않은 상태라면 현재 초과/예상 초과 시간을 계산기 초과시간 입력창에 채워줌
+  // 5. 미니 계산기 연동: 최종 예상 초과시간이 있으면 계산기 초과시간 입력창에 자동 채움
   if (calcOvertimeHoursInput && !calcOvertimeHoursInput.dataset.touched) {
-    const autoHours = isOverTarget ? currentOvertime : (expectedOvertime > 0 ? expectedOvertime : 0);
+    const autoHours = diffFromTarget > 0 ? diffFromTarget : 0;
     calcOvertimeHoursInput.value = autoHours > 0 ? autoHours.toFixed(1) : "";
   }
-  
-  // 계산기 결과 즉시 재계산
   runMiniCalculator();
 }
 
