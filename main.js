@@ -1,4 +1,5 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbwh7SouQXxArlKFzdzUa1NAgvdwKb7bXgeMV43OXDOEUkHzDItbWmFhdFMT0slZQN1YTQ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwmWqksuzme7jmILZCJKND-jvJ9FxDdBt_IMUpPip0diOCst44WIUzYppZVr133RDLCXg/exec";
+const ADMIN_PASSWORD = "admin1234"; // 관리자 삭제 비밀번호 (원하시는 번호로 변경 가능)
 
 let currentUser = "";
 let userList = [];
@@ -66,7 +67,6 @@ function init() {
   });
 }
 
-// 닉네임 유효성 검사 (날짜 포맷 및 더미 제외)
 function isValidCrewName(name) {
   if (!name || typeof name !== "string") return false;
   const trimmed = name.trim();
@@ -75,7 +75,6 @@ function isValidCrewName(name) {
   const dummyNames = ["크루 1", "크루 2", "크루 3", "크루1", "크루2", "크루3", "미지정크루"];
   if (dummyNames.includes(trimmed)) return false;
 
-  // 날짜 문자열 패턴 필터링 (Mon Aug 03..., 2026-08... 등)
   if (trimmed.includes("GMT") || trimmed.includes("표준시") || /^\d{4}[-/.]\d{2}/.test(trimmed)) {
     return false;
   }
@@ -113,15 +112,19 @@ function promptNewUser() {
   }
 }
 
+// 크루 탭 및 삭제(X) 버튼 렌더링
 function renderCrewTabs() {
   crewTabsWrap.innerHTML = "";
 
   userList.forEach((user) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = `crew-tab-btn ${user === currentUser ? "active" : ""}`;
-    btn.textContent = `👤 ${user}`;
-    btn.addEventListener("click", () => {
+    const tabItem = document.createElement("div");
+    tabItem.className = `crew-tab-item ${user === currentUser ? "active" : ""}`;
+
+    const nameBtn = document.createElement("button");
+    nameBtn.type = "button";
+    nameBtn.className = "crew-tab-name";
+    nameBtn.textContent = `👤 ${user}`;
+    nameBtn.addEventListener("click", () => {
       if (currentUser !== user) {
         currentUser = user;
         saveUsers();
@@ -132,7 +135,20 @@ function renderCrewTabs() {
         fetchSheetData();
       }
     });
-    crewTabsWrap.appendChild(btn);
+
+    const delBtn = document.createElement("button");
+    delBtn.type = "button";
+    delBtn.className = "btn-delete-crew";
+    delBtn.title = "크루 삭제 (관리자)";
+    delBtn.innerHTML = "✕";
+    delBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      handleDeleteCrew(user);
+    });
+
+    tabItem.appendChild(nameBtn);
+    tabItem.appendChild(delBtn);
+    crewTabsWrap.appendChild(tabItem);
   });
 
   const addBtn = document.createElement("button");
@@ -141,6 +157,57 @@ function renderCrewTabs() {
   addBtn.textContent = "+ 내 닉네임 등록";
   addBtn.addEventListener("click", promptNewUser);
   crewTabsWrap.appendChild(addBtn);
+}
+
+// 크루 삭제 로직
+async function handleDeleteCrew(targetUser) {
+  const pw = prompt(`[${targetUser}] 크루를 삭제하시겠습니까?\n관리자 비밀번호를 입력하세요:`);
+  if (pw === null) return; // 취소
+
+  if (pw !== ADMIN_PASSWORD) {
+    alert("⚠️ 비밀번호가 일치하지 않습니다.");
+    return;
+  }
+
+  if (!confirm(`정말로 [${targetUser}] 크루와 관련된 시트의 모든 데이터를 영구 삭제하시겠습니까?`)) {
+    return;
+  }
+
+  // 1. 목록에서 제거
+  userList = userList.filter(u => u !== targetUser);
+  if (currentUser === targetUser) {
+    currentUser = userList.length > 0 ? userList[0] : "";
+  }
+  saveUsers();
+  updateViewVisibility();
+
+  if (currentUser) {
+    loadLocalStorage();
+    renderCalendar();
+    calculateAll();
+  }
+
+  // 2. 구글 스프레드시트 데이터 일괄 삭제 요청 전송
+  syncStatusEl.textContent = "🗑️ 시트 데이터 삭제 중...";
+  syncStatusEl.className = "sync-badge saving";
+
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "DELETE", user: targetUser })
+    });
+    const result = await res.json();
+    if (result.status === "success") {
+      syncStatusEl.textContent = "🍔 삭제 완료";
+      syncStatusEl.className = "sync-badge";
+      alert(`[${targetUser}] 크루가 시트 및 목록에서 완전히 삭제되었습니다.`);
+    }
+  } catch (err) {
+    console.error(err);
+    syncStatusEl.textContent = "⚠️ 삭제 실패";
+    syncStatusEl.className = "sync-badge";
+  }
 }
 
 function updateCrewLabels() {
