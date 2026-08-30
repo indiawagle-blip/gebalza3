@@ -115,7 +115,6 @@ function renderCrewTabs() {
     crewTabsWrap.appendChild(btn);
   });
 
-  // '+ 내 닉네임 등록' 버튼
   const addBtn = document.createElement("button");
   addBtn.type = "button";
   addBtn.className = "btn-add-crew-tab";
@@ -136,7 +135,6 @@ function loadUsers() {
   if (savedUsers) {
     try {
       const parsed = JSON.parse(savedUsers);
-      // 예전 더미 데이터(크루 1,2,3) 필터링 제거
       userList = Array.isArray(parsed) ? parsed.filter(u => !dummyNames.includes(u.trim())) : [];
     } catch (e) {
       userList = [];
@@ -307,6 +305,8 @@ function renderCalendar() {
       totalHours: 0
     };
 
+    const isOff = record.type === "연차" || record.type === "휴일";
+
     const tr = document.createElement("tr");
     if (isWeekend) tr.classList.add("weekend");
     if (isToday) tr.classList.add("today");
@@ -322,9 +322,9 @@ function renderCalendar() {
           <option value="휴일" ${record.type === "휴일" ? "selected" : ""}>☕ 휴일/주말</option>
         </select>
       </td>
-      <td><input type="time" data-date="${dateStr}" class="start-time" value="${record.start || ""}" ${record.type === "연차" || record.type === "휴일" ? "disabled" : ""}></td>
-      <td><input type="time" data-date="${dateStr}" class="end-time" value="${record.end || ""}" ${record.type === "연차" || record.type === "휴일" ? "disabled" : ""}></td>
-      <td><input type="number" data-date="${dateStr}" class="break-min" value="${record.breakMin ?? 60}" step="10" min="0" style="width: 60px;" ${record.type === "연차" || record.type === "휴일" ? "disabled" : ""}></td>
+      <td><input type="time" data-date="${dateStr}" class="start-time" value="${record.start || ""}" ${isOff ? "disabled" : ""}></td>
+      <td><input type="time" data-date="${dateStr}" class="end-time" value="${record.end || ""}" ${isOff ? "disabled" : ""}></td>
+      <td><input type="number" data-date="${dateStr}" class="break-min" value="${record.breakMin ?? 60}" step="10" min="0" style="width: 60px;" ${isOff ? "disabled" : ""}></td>
       <td><span class="day-total-badge" id="badge-${dateStr}">${(record.totalHours || 0).toFixed(1)}</span> 시간</td>
     `;
 
@@ -334,36 +334,61 @@ function renderCalendar() {
   attachTableEvents();
 }
 
+// 당일 행 데이터 실시간 파싱 및 상태 갱신 함수
+function updateRowData(row, date) {
+  const type = row.querySelector(".type-select").value;
+  const startInput = row.querySelector(".start-time");
+  const endInput = row.querySelector(".end-time");
+  const breakInput = row.querySelector(".break-min");
+
+  const start = startInput.value;
+  const end = endInput.value;
+  const breakMin = parseInt(breakInput.value, 10) >= 0 ? parseInt(breakInput.value, 10) : 60;
+
+  monthData[date] = {
+    type,
+    start,
+    end,
+    breakMin,
+    totalHours: 0
+  };
+
+  calculateAll();
+  saveLocalStorage();
+  syncDayToSheet(date);
+}
+
 function attachTableEvents() {
   tableBody.querySelectorAll(".type-select").forEach((el) => {
     el.addEventListener("change", (e) => {
       const date = e.target.dataset.date;
+      const row = e.target.closest("tr");
       const type = e.target.value;
-      if (!monthData[date]) monthData[date] = { breakMin: 60 };
-      monthData[date].type = type;
 
-      renderCalendar();
-      calculateAll();
-      saveLocalStorage();
-      syncDayToSheet(date);
+      const startInput = row.querySelector(".start-time");
+      const endInput = row.querySelector(".end-time");
+      const breakInput = row.querySelector(".break-min");
+
+      const isOff = type === "연차" || type === "휴일";
+      startInput.disabled = isOff;
+      endInput.disabled = isOff;
+      breakInput.disabled = isOff;
+
+      updateRowData(row, date);
     });
   });
 
-  const timeInputs = tableBody.querySelectorAll(".start-time, .end-time, .break-min");
-  timeInputs.forEach((input) => {
-    input.addEventListener("input", (e) => {
+  const rowInputs = tableBody.querySelectorAll(".start-time, .end-time, .break-min");
+  rowInputs.forEach((input) => {
+    const handleInput = (e) => {
       const date = e.target.dataset.date;
       const row = e.target.closest("tr");
-      const type = row.querySelector(".type-select").value;
-      const start = row.querySelector(".start-time").value;
-      const end = row.querySelector(".end-time").value;
-      const breakMin = parseInt(row.querySelector(".break-min").value) || 0;
+      updateRowData(row, date);
+    };
 
-      monthData[date] = { type, start, end, breakMin };
-      calculateAll();
-      saveLocalStorage();
-      syncDayToSheet(date);
-    });
+    // 실시간 타이핑과 마우스 증감/시간선택기 조작 모두 즉시 계산
+    input.addEventListener("input", handleInput);
+    input.addEventListener("change", handleInput);
   });
 }
 
@@ -388,7 +413,8 @@ function calculateAll() {
       type: isWeekend ? "휴일" : "정상",
       start: "",
       end: "",
-      breakMin: 60
+      breakMin: 60,
+      totalHours: 0
     };
 
     let dayHours = 0;
@@ -401,7 +427,9 @@ function calculateAll() {
       dayHours = calculateWorkHours(record.start, record.end, record.breakMin);
     }
 
-    monthData[dateStr] = { ...record, totalHours: dayHours };
+    // 계산된 시간 객체 및 UI 뱃지에 실시간 반영
+    record.totalHours = dayHours;
+    monthData[dateStr] = record;
 
     const badge = document.getElementById(`badge-${dateStr}`);
     if (badge) {
@@ -416,6 +444,7 @@ function calculateAll() {
     }
   }
 
+  // 상단 요약 지표 실시간 계산
   const remaining = Math.max(0, targetHours - totalWorked);
   totalWorkedEl.textContent = totalWorked.toFixed(1);
   remainingHoursEl.textContent = remaining.toFixed(1);
@@ -423,7 +452,7 @@ function calculateAll() {
   if (totalWorked >= targetHours) {
     remainingStatus.textContent = "🎉 이번 달 목표 달성 완료! 🍟";
     dailyRecommendedEl.textContent = "0.0";
-    remainingWorkdaysText.textContent = `남은 평일: ${futureRemainingWorkdays}일`;
+    remainingWorkdaysText.textContent = `남은 평일: ${futureRemainingWorkdays}일 (조기 퇴근 가능)`;
   } else {
     remainingStatus.textContent = `목표까지 ${(targetHours - totalWorked).toFixed(1)}시간 남음`;
     if (futureRemainingWorkdays > 0) {
@@ -437,14 +466,23 @@ function calculateAll() {
   }
 }
 
+// 출퇴근 시간 -> 실수(시간) 변환
 function calculateWorkHours(startStr, endStr, breakMin = 60) {
   if (!startStr || !endStr) return 0;
+
   const [sh, sm] = startStr.split(":").map(Number);
   const [eh, em] = endStr.split(":").map(Number);
+
+  if (isNaN(sh) || isNaN(sm) || isNaN(eh) || isNaN(em)) return 0;
+
   const startMinutes = sh * 60 + sm;
   const endMinutes = eh * 60 + em;
+
   if (endMinutes <= startMinutes) return 0;
-  const netMinutes = endMinutes - startMinutes - breakMin;
+
+  const bMin = isNaN(breakMin) ? 60 : Number(breakMin);
+  const netMinutes = endMinutes - startMinutes - bMin;
+  
   return Math.max(0, netMinutes / 60);
 }
 
