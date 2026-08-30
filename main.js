@@ -1,4 +1,5 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbwh7SouQXxArlKFzdzUa1NAgvdwKb7bXgeMV43OXDOEUkHzDItbWmFhdFMT0slZQN1YTQ/exec";
+// ⚠️ 1단계에서 복사한 최신 웹앱 주소를 아래 따옴표 안에 넣어주세요!
+const API_URL = "https://script.google.com/macros/s/AKfycbzKYeJigpvclCwWKCmgXyYJdiSVZSOfO8ER-Vn6sbZXLImDYa5wYbJEz7MwFVVsHavIfg/exec";
 
 let currentUser = "";
 let userList = [];
@@ -240,6 +241,7 @@ async function fetchSheetData() {
   }
 }
 
+// 구글 시트로 데이터 전송
 function syncDayToSheet(dateStr) {
   if (!currentUser) return;
 
@@ -252,9 +254,11 @@ function syncDayToSheet(dateStr) {
 
   syncDebounceTimers[dateStr] = setTimeout(async () => {
     const record = monthData[dateStr] || {};
+    
+    // 시트의 1열부터 9열까지 매칭될 데이터
     const payload = {
-      user: currentUser,
-      date: dateStr,
+      user: currentUser, // 1열: 크루 닉네임
+      date: dateStr,     // 2열: 일자
       type: record.type || "정상",
       start: record.start || "",
       end: record.end || "",
@@ -263,6 +267,8 @@ function syncDayToSheet(dateStr) {
       yearMonth: currentYearMonth,
       targetHours: targetHours
     };
+
+    console.log("👉 시트로 전송하는 데이터:", payload);
 
     try {
       await fetch(API_URL, {
@@ -334,7 +340,6 @@ function renderCalendar() {
   attachTableEvents();
 }
 
-// 당일 행 데이터 실시간 파싱 및 상태 갱신 함수
 function updateRowData(row, date) {
   const type = row.querySelector(".type-select").value;
   const startInput = row.querySelector(".start-time");
@@ -386,7 +391,6 @@ function attachTableEvents() {
       updateRowData(row, date);
     };
 
-    // 실시간 타이핑과 마우스 증감/시간선택기 조작 모두 즉시 계산
     input.addEventListener("input", handleInput);
     input.addEventListener("change", handleInput);
   });
@@ -427,7 +431,6 @@ function calculateAll() {
       dayHours = calculateWorkHours(record.start, record.end, record.breakMin);
     }
 
-    // 계산된 시간 객체 및 UI 뱃지에 실시간 반영
     record.totalHours = dayHours;
     monthData[dateStr] = record;
 
@@ -444,7 +447,6 @@ function calculateAll() {
     }
   }
 
-  // 상단 요약 지표 실시간 계산
   const remaining = Math.max(0, targetHours - totalWorked);
   totalWorkedEl.textContent = totalWorked.toFixed(1);
   remainingHoursEl.textContent = remaining.toFixed(1);
@@ -466,7 +468,6 @@ function calculateAll() {
   }
 }
 
-// 출퇴근 시간 -> 실수(시간) 변환
 function calculateWorkHours(startStr, endStr, breakMin = 60) {
   if (!startStr || !endStr) return 0;
 
