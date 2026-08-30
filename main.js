@@ -1,5 +1,5 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbwmWqksuzme7jmILZCJKND-jvJ9FxDdBt_IMUpPip0diOCst44WIUzYppZVr133RDLCXg/exec";
-const ADMIN_PASSWORD = "admin1234"; // 관리자 삭제 비밀번호 (원하시는 번호로 변경 가능)
+const ADMIN_PASSWORD = "admin1234"; // 관리자 삭제 비밀번호
 
 let currentUser = "";
 let userList = [];
@@ -112,7 +112,6 @@ function promptNewUser() {
   }
 }
 
-// 크루 탭 및 삭제(X) 버튼 렌더링
 function renderCrewTabs() {
   crewTabsWrap.innerHTML = "";
 
@@ -159,10 +158,9 @@ function renderCrewTabs() {
   crewTabsWrap.appendChild(addBtn);
 }
 
-// 크루 삭제 로직
 async function handleDeleteCrew(targetUser) {
   const pw = prompt(`[${targetUser}] 크루를 삭제하시겠습니까?\n관리자 비밀번호를 입력하세요:`);
-  if (pw === null) return; // 취소
+  if (pw === null) return;
 
   if (pw !== ADMIN_PASSWORD) {
     alert("⚠️ 비밀번호가 일치하지 않습니다.");
@@ -173,7 +171,6 @@ async function handleDeleteCrew(targetUser) {
     return;
   }
 
-  // 1. 목록에서 제거
   userList = userList.filter(u => u !== targetUser);
   if (currentUser === targetUser) {
     currentUser = userList.length > 0 ? userList[0] : "";
@@ -187,7 +184,6 @@ async function handleDeleteCrew(targetUser) {
     calculateAll();
   }
 
-  // 2. 구글 스프레드시트 데이터 일괄 삭제 요청 전송
   syncStatusEl.textContent = "🗑️ 시트 데이터 삭제 중...";
   syncStatusEl.className = "sync-badge saving";
 
@@ -217,7 +213,6 @@ function updateCrewLabels() {
 
 function loadUsers() {
   const savedUsers = localStorage.getItem("mcrew_user_list");
-  
   if (savedUsers) {
     try {
       const parsed = JSON.parse(savedUsers);
@@ -473,6 +468,25 @@ function attachTableEvents() {
 
     input.addEventListener("input", handleInput);
     input.addEventListener("change", handleInput);
+
+    // 포커스를 벗어날 때(blur) AM/PM 미완성 상태를 오전(AM)으로 자동 완성
+    if (input.type === "time") {
+      input.addEventListener("blur", (e) => {
+        const val = e.target.value;
+        const date = e.target.dataset.date;
+        const row = e.target.closest("tr");
+
+        // 만약 숫자는 들어갔으나 AM/PM이 비어 value가 안 읽힌 경우, 저장된 값 복구 및 오전 기본값 지정
+        if (!val && monthData[date]) {
+          const isStart = e.target.classList.contains("start-time");
+          const prev = isStart ? monthData[date].start : monthData[date].end;
+          if (prev) {
+            e.target.value = prev;
+          }
+        }
+        updateRowData(row, date);
+      });
+    }
   });
 }
 
