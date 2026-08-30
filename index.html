@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>M-CREW SHIFT · 맥도날드 크루 근무 계산기</title>
+  <title>M-CREW SHIFT · 맥도날드 팀 시차출근 매니저</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Jua&family=Pretendard:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -18,7 +18,6 @@
       --mcd-black: #27251f;
       --mcd-gray: #706e6b;
       --mcd-border: #ebdccb;
-      --mcd-green: #2d8a4e;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -47,73 +46,118 @@
     }
 
     .header-inner {
-      max-width: 1080px;
+      max-width: 1120px;
       margin: 0 auto;
       display: flex;
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 16px;
+    }
+
+    /* 좌측 상단 크루 탭 네비게이션 */
+    .header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
 
     .logo-box {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
 
     .golden-arch {
-      font-size: 1.8rem;
+      font-size: 1.6rem;
       background: var(--mcd-yellow);
       color: var(--mcd-red);
-      width: 44px;
-      height: 44px;
+      width: 38px;
+      height: 38px;
       display: flex;
       align-items: center;
       justify-content: center;
-      border-radius: 12px;
+      border-radius: 10px;
       box-shadow: 0 3px 0 #d49f10;
     }
 
     .logo-text h1 {
       font-family: 'Jua', sans-serif;
-      font-size: 1.35rem;
+      font-size: 1.3rem;
       color: var(--mcd-yellow);
       line-height: 1.1;
     }
 
     .logo-text span {
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       color: #ffe5e2;
       font-weight: 500;
     }
 
-    .header-controls {
+    /* 닉네임 탭 바 */
+    .crew-tabs-wrap {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .crew-tab-btn {
+      background: rgba(255, 255, 255, 0.18);
+      border: 1.5px solid rgba(255, 255, 255, 0.35);
+      color: #ffffff;
+      padding: 5px 14px;
+      border-radius: 999px;
+      font-family: 'Jua', sans-serif;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .crew-tab-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .crew-tab-btn.active {
+      background: var(--mcd-yellow);
+      color: var(--mcd-red);
+      border-color: #ffe066;
+      box-shadow: 0 3px 0 #b38600;
+      transform: translateY(-1px);
+    }
+
+    .btn-add-crew-tab {
+      background: #ffffff;
+      border: none;
+      color: var(--mcd-red);
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-family: 'Jua', sans-serif;
+      font-size: 0.85rem;
+      cursor: pointer;
+      box-shadow: 0 2px 0 rgba(0,0,0,0.15);
+      transition: all 0.2s;
+    }
+
+    .btn-add-crew-tab:hover {
+      background: var(--mcd-yellow-soft);
+      transform: scale(1.05);
+    }
+
+    /* 우측 컨트롤 */
+    .header-right {
       display: flex;
       align-items: center;
       gap: 12px;
     }
 
-    .sync-badge {
-      font-size: 0.8rem;
-      padding: 5px 14px;
-      border-radius: 999px;
-      background: rgba(0, 0, 0, 0.25);
-      color: #fff;
-      font-weight: 600;
-    }
-
-    .sync-badge.saving {
-      background: var(--mcd-yellow);
-      color: var(--mcd-black);
-    }
-
     .month-picker-wrap {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       background: #ffffff;
-      padding: 4px 12px;
+      padding: 5px 14px;
       border-radius: 999px;
     }
 
@@ -133,8 +177,22 @@
       background: transparent;
     }
 
+    .sync-badge {
+      font-size: 0.78rem;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.25);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .sync-badge.saving {
+      background: var(--mcd-yellow);
+      color: var(--mcd-black);
+    }
+
     .container {
-      max-width: 1080px;
+      max-width: 1120px;
       margin: 28px auto;
       padding: 0 20px;
     }
@@ -162,7 +220,7 @@
 
     .target-bar label {
       font-family: 'Jua', sans-serif;
-      font-size: 1.15rem;
+      font-size: 1.2rem;
       color: var(--mcd-red);
       display: flex;
       align-items: center;
@@ -193,7 +251,7 @@
 
     .metrics-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       gap: 16px;
     }
 
@@ -225,7 +283,7 @@
 
     .metric-val {
       font-family: 'Jua', sans-serif;
-      font-size: 2rem;
+      font-size: 2.1rem;
       color: var(--mcd-black);
     }
 
@@ -250,7 +308,7 @@
       font-weight: 500;
     }
 
-    /* 시프트 테이블 */
+    /* 테이블 패널 */
     .table-panel {
       background: var(--mcd-white);
       border: 2px solid var(--mcd-border);
@@ -271,12 +329,6 @@
     .panel-head h2 {
       font-family: 'Jua', sans-serif;
       font-size: 1.25rem;
-      color: var(--mcd-black);
-    }
-
-    .tip-text {
-      font-size: 0.85rem;
-      color: var(--mcd-gray);
     }
 
     .table-scroll {
@@ -316,7 +368,6 @@
       border-left: 4px solid var(--mcd-yellow);
     }
 
-    /* 인풋 스타일 */
     select, input[type="time"], input[type="number"] {
       padding: 6px 10px;
       border: 1.5px solid #d8ccc0;
@@ -325,7 +376,6 @@
       font-family: inherit;
       background-color: #fff;
       outline: none;
-      transition: all 0.2s;
     }
 
     select:focus, input[type="time"]:focus, input[type="number"]:focus {
@@ -351,19 +401,28 @@
 
   <header>
     <div class="header-inner">
-      <div class="logo-box">
-        <div class="golden-arch mcd-font">M</div>
-        <div class="logo-text">
-          <h1>M-CREW SHIFT</h1>
-          <span>선택적 시차근무 크루 타임시트 🍟</span>
+      <!-- 좌측: 로고 및 크루 닉네임 탭 -->
+      <div class="header-left">
+        <div class="logo-box">
+          <div class="golden-arch mcd-font">M</div>
+          <div class="logo-text">
+            <h1>M-CREW SHIFT</h1>
+            <span>선택적 시차근무 크루 타임시트 🍟</span>
+          </div>
+        </div>
+        <!-- 팀원 닉네임 버튼 목록 -->
+        <div class="crew-tabs-wrap" id="crewTabsWrap">
+          <!-- 자바스크립트로 닉네임 탭들이 들어옵니다 -->
         </div>
       </div>
-      <div class="header-controls">
-        <span id="syncStatus" class="sync-badge">🍟 시트 연동 완료</span>
+
+      <!-- 우측: 월 선택 및 상태 -->
+      <div class="header-right">
         <div class="month-picker-wrap">
           <label for="monthPicker">근무 월</label>
           <input type="month" id="monthPicker">
         </div>
+        <span id="syncStatus" class="sync-badge">🍟 준비 완료</span>
       </div>
     </div>
   </header>
@@ -372,7 +431,7 @@
     <!-- 크루 요약 대시보드 -->
     <section class="dashboard-panel">
       <div class="target-bar">
-        <label for="targetHours">🍔 이번 달 총 목표 근무시간 (회사 공지)</label>
+        <label for="targetHours">🍔 <span id="currentCrewName">크루 1</span> 님의 목표 근무시간</label>
         <div class="target-input-box">
           <input type="number" id="targetHours" value="168" min="0" step="0.5">
           <span class="mcd-font" style="color:var(--mcd-red);">시간</span>
@@ -383,7 +442,7 @@
         <div class="metric-card main-burger">
           <span class="metric-title">현재 누적 근무시간</span>
           <div class="metric-val"><strong id="totalWorked">0.0</strong> <span>시간</span></div>
-          <p class="metric-desc" id="leaveDetail">연차(+8h) / 반차(+4h) 합산 완료</p>
+          <p class="metric-desc">연차(+8h) / 반차(+4h) 합산 완료</p>
         </div>
 
         <div class="metric-card">
@@ -400,11 +459,10 @@
       </div>
     </section>
 
-    <!-- 일별 시프트 기록 테이블 -->
+    <!-- 일별 시프트 테이블 -->
     <section class="table-panel">
       <div class="panel-head">
-        <h2>📋 일별 근무 및 출퇴근 기록표</h2>
-        <span class="tip-text">💡 출퇴근 시간을 넣으면 휴게(1시간)가 자동 차감되어 당일 근무시간이 계산됩니다.</span>
+        <h2>📋 <span id="tableCrewName">크루 1</span> 님의 출퇴근 기록표</h2>
       </div>
 
       <div class="table-scroll">
@@ -420,7 +478,6 @@
             </tr>
           </thead>
           <tbody id="workTableBody">
-            <!-- 자바스크립트로 일별 행 자동 렌더링 -->
           </tbody>
         </table>
       </div>
@@ -428,7 +485,7 @@
   </main>
 
   <footer>
-    <p>© 2026 M-CREW SHIFT · 맥도날드 크루 스타일 시차출근 매니저</p>
+    <p>© 2026 M-CREW SHIFT · 맥도날드 팀 시차출근 매니저</p>
   </footer>
 
   <script type="module" src="main.js"></script>

@@ -1,6 +1,7 @@
-// 구글 스프레드시트 웹 앱 주소
 const API_URL = "https://script.google.com/macros/s/AKfycbwh7SouQXxArlKFzdzUa1NAgvdwKb7bXgeMV43OXDOEUkHzDItbWmFhdFMT0slZQN1YTQ/exec";
 
+let currentUser = "크루 1";
+let userList = ["크루 1", "크루 2", "크루 3"];
 let currentYearMonth = "";
 let targetHours = 168;
 let monthData = {};
@@ -12,6 +13,7 @@ const currentMonth = String(now.getMonth() + 1).padStart(2, "0");
 currentYearMonth = `${currentYear}-${currentMonth}`;
 
 // DOM 엘리먼트
+const crewTabsWrap = document.getElementById("crewTabsWrap");
 const monthPicker = document.getElementById("monthPicker");
 const targetHoursInput = document.getElementById("targetHours");
 const tableBody = document.getElementById("workTableBody");
@@ -21,16 +23,16 @@ const dailyRecommendedEl = document.getElementById("dailyRecommended");
 const remainingWorkdaysText = document.getElementById("remainingWorkdaysText");
 const remainingStatus = document.getElementById("remainingStatus");
 const syncStatusEl = document.getElementById("syncStatus");
+const currentCrewName = document.getElementById("currentCrewName");
+const tableCrewName = document.getElementById("tableCrewName");
 
 function init() {
   monthPicker.value = currentYearMonth;
-  
-  // 1. 로컬 저장소 먼저 불러오기
+  loadUsers();
   loadLocalStorage();
+  renderCrewTabs();
   renderCalendar();
   calculateAll();
-
-  // 2. 구글 시트에서 최신 데이터 조회
   fetchSheetData();
 
   monthPicker.addEventListener("change", (e) => {
@@ -48,8 +50,81 @@ function init() {
   });
 }
 
+// 크루 탭 바 렌더링
+function renderCrewTabs() {
+  crewTabsWrap.innerHTML = "";
+
+  userList.forEach((user) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `crew-tab-btn ${user === currentUser ? "active" : ""}`;
+    btn.textContent = `👤 ${user}`;
+    btn.addEventListener("click", () => {
+      if (currentUser !== user) {
+        currentUser = user;
+        saveUsers();
+        renderCrewTabs();
+        updateCrewLabels();
+        loadLocalStorage();
+        renderCalendar();
+        calculateAll();
+        fetchSheetData();
+      }
+    });
+    crewTabsWrap.appendChild(btn);
+  });
+
+  // + 새 크루 추가 버튼
+  const addBtn = document.createElement("button");
+  addBtn.type = "button";
+  addBtn.className = "btn-add-crew-tab";
+  addBtn.textContent = "+ 크루 추가";
+  addBtn.addEventListener("click", () => {
+    const name = prompt("새로운 팀원 닉네임을 입력하세요 (예: 빅맥마스터, 감튀요정):");
+    if (name && name.trim()) {
+      const cleanName = name.trim();
+      if (!userList.includes(cleanName)) {
+        userList.push(cleanName);
+      }
+      currentUser = cleanName;
+      saveUsers();
+      renderCrewTabs();
+      updateCrewLabels();
+      loadLocalStorage();
+      renderCalendar();
+      calculateAll();
+      fetchSheetData();
+    }
+  });
+  crewTabsWrap.appendChild(addBtn);
+}
+
+function updateCrewLabels() {
+  currentCrewName.textContent = currentUser;
+  tableCrewName.textContent = currentUser;
+}
+
+function loadUsers() {
+  const savedUsers = localStorage.getItem("mcrew_user_list");
+  if (savedUsers) {
+    userList = JSON.parse(savedUsers);
+  }
+  const lastUser = localStorage.getItem("mcrew_last_user");
+  if (lastUser && userList.includes(lastUser)) {
+    currentUser = lastUser;
+  } else if (userList.length > 0) {
+    currentUser = userList[0];
+  }
+  updateCrewLabels();
+}
+
+function saveUsers() {
+  localStorage.setItem("mcrew_user_list", JSON.stringify(userList));
+  localStorage.setItem("mcrew_last_user", currentUser);
+}
+
 function getStorageKey() {
-  return `mcrew_shift_${currentYearMonth}`;
+  return `mcrew_${currentUser}_${currentYearMonth}`;
 }
 
 function loadLocalStorage() {
@@ -70,18 +145,33 @@ function saveLocalStorage() {
     getStorageKey(),
     JSON.stringify({ targetHours, monthData })
   );
+  saveUsers();
 }
 
-// 구글 시트 데이터 로드
 async function fetchSheetData() {
   syncStatusEl.textContent = "🍟 주문 접수 중...";
   syncStatusEl.className = "sync-badge saving";
 
   try {
-    const res = await fetch(`${API_URL}?month=${currentYearMonth}`);
+    const res = await fetch(`${API_URL}?user=${encodeURIComponent(currentUser)}&month=${currentYearMonth}`);
     const result = await res.json();
     if (result.status === "success") {
-      if (result.data && Object.keys(result.data).length > 0) {
+      // 서버의 모든 크루 목록 병합
+      if (result.users && result.users.length > 0) {
+        let added = false;
+        result.users.forEach(u => {
+          if (!userList.includes(u)) {
+            userList.push(u);
+            added = true;
+          }
+        });
+        if (added) {
+          saveUsers();
+          renderCrewTabs();
+        }
+      }
+
+      if (result.data) {
         monthData = { ...monthData, ...result.data };
       }
       if (result.targetHours) {
@@ -92,19 +182,18 @@ async function fetchSheetData() {
       renderCalendar();
       calculateAll();
 
-      syncStatusEl.textContent = "🍔 시트 동기화 완료";
+      syncStatusEl.textContent = "🍔 동기화 완료";
       syncStatusEl.className = "sync-badge";
     }
   } catch (err) {
     console.error(err);
-    syncStatusEl.textContent = "⚠️ 오프라인 모드";
+    syncStatusEl.textContent = "⚠️ 오프라인";
     syncStatusEl.className = "sync-badge";
   }
 }
 
-// 구글 시트 자동 저장 (0.6초 디바운스, text/plain)
 function syncDayToSheet(dateStr) {
-  syncStatusEl.textContent = "🍟 버거 조리 중(저장)...";
+  syncStatusEl.textContent = "🍟 저장 중...";
   syncStatusEl.className = "sync-badge saving";
 
   if (syncDebounceTimers[dateStr]) {
@@ -114,6 +203,7 @@ function syncDayToSheet(dateStr) {
   syncDebounceTimers[dateStr] = setTimeout(async () => {
     const record = monthData[dateStr] || {};
     const payload = {
+      user: currentUser,
       date: dateStr,
       type: record.type || "정상",
       start: record.start || "",
@@ -134,7 +224,7 @@ function syncDayToSheet(dateStr) {
       syncStatusEl.className = "sync-badge";
     } catch (err) {
       console.error(err);
-      syncStatusEl.textContent = "⚠️ 저장 실패 (로컬 보관)";
+      syncStatusEl.textContent = "⚠️ 로컬 보관";
       syncStatusEl.className = "sync-badge";
     }
   }, 600);
@@ -275,9 +365,9 @@ function calculateAll() {
   remainingHoursEl.textContent = remaining.toFixed(1);
 
   if (totalWorked >= targetHours) {
-    remainingStatus.textContent = "🎉 이번 달 목표를 달성했습니다! 퇴근 준비 완료 🍟";
+    remainingStatus.textContent = "🎉 이번 달 목표 달성 완료! 🍟";
     dailyRecommendedEl.textContent = "0.0";
-    remainingWorkdaysText.textContent = `남은 평일: ${futureRemainingWorkdays}일 (조기 퇴근 가능)`;
+    remainingWorkdaysText.textContent = `남은 평일: ${futureRemainingWorkdays}일`;
   } else {
     remainingStatus.textContent = `목표까지 ${(targetHours - totalWorked).toFixed(1)}시간 남음`;
     if (futureRemainingWorkdays > 0) {
