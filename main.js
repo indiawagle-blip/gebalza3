@@ -1,7 +1,7 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbwh7SouQXxArlKFzdzUa1NAgvdwKb7bXgeMV43OXDOEUkHzDItbWmFhdFMT0slZQN1YTQ/exec";
 
-let currentUser = "크루 1";
-let userList = ["크루 1", "크루 2", "크루 3"];
+let currentUser = "";
+let userList = [];
 let currentYearMonth = "";
 let targetHours = 168;
 let monthData = {};
@@ -14,6 +14,9 @@ currentYearMonth = `${currentYear}-${currentMonth}`;
 
 // DOM 엘리먼트
 const crewTabsWrap = document.getElementById("crewTabsWrap");
+const emptyCrewSection = document.getElementById("emptyCrewSection");
+const mainContentSection = document.getElementById("mainContentSection");
+const btnRegisterMain = document.getElementById("btnRegisterMain");
 const monthPicker = document.getElementById("monthPicker");
 const targetHoursInput = document.getElementById("targetHours");
 const tableBody = document.getElementById("workTableBody");
@@ -28,29 +31,68 @@ const tableCrewName = document.getElementById("tableCrewName");
 
 function init() {
   monthPicker.value = currentYearMonth;
+  
   loadUsers();
-  loadLocalStorage();
-  renderCrewTabs();
-  renderCalendar();
-  calculateAll();
-  fetchSheetData();
+  updateViewVisibility();
 
-  monthPicker.addEventListener("change", (e) => {
-    currentYearMonth = e.target.value;
+  if (currentUser) {
     loadLocalStorage();
     renderCalendar();
     calculateAll();
-    fetchSheetData();
+  }
+  
+  fetchSheetData();
+
+  btnRegisterMain.addEventListener("click", promptNewUser);
+
+  monthPicker.addEventListener("change", (e) => {
+    currentYearMonth = e.target.value;
+    if (currentUser) {
+      loadLocalStorage();
+      renderCalendar();
+      calculateAll();
+      fetchSheetData();
+    }
   });
 
   targetHoursInput.addEventListener("input", (e) => {
     targetHours = parseFloat(e.target.value) || 0;
-    saveLocalStorage();
-    calculateAll();
+    if (currentUser) {
+      saveLocalStorage();
+      calculateAll();
+    }
   });
 }
 
-// 크루 탭 바 렌더링
+function updateViewVisibility() {
+  if (!currentUser) {
+    emptyCrewSection.style.display = "block";
+    mainContentSection.style.display = "none";
+  } else {
+    emptyCrewSection.style.display = "none";
+    mainContentSection.style.display = "block";
+  }
+  renderCrewTabs();
+  updateCrewLabels();
+}
+
+function promptNewUser() {
+  const name = prompt("본인의 크루 닉네임(또는 이름)을 입력해 주세요:");
+  if (name && name.trim()) {
+    const cleanName = name.trim();
+    if (!userList.includes(cleanName)) {
+      userList.push(cleanName);
+    }
+    currentUser = cleanName;
+    saveUsers();
+    updateViewVisibility();
+    loadLocalStorage();
+    renderCalendar();
+    calculateAll();
+    fetchSheetData();
+  }
+}
+
 function renderCrewTabs() {
   crewTabsWrap.innerHTML = "";
 
@@ -63,8 +105,7 @@ function renderCrewTabs() {
       if (currentUser !== user) {
         currentUser = user;
         saveUsers();
-        renderCrewTabs();
-        updateCrewLabels();
+        updateViewVisibility();
         loadLocalStorage();
         renderCalendar();
         calculateAll();
@@ -74,48 +115,36 @@ function renderCrewTabs() {
     crewTabsWrap.appendChild(btn);
   });
 
-  // + 새 크루 추가 버튼
+  // '+ 내 닉네임 등록' 버튼
   const addBtn = document.createElement("button");
   addBtn.type = "button";
   addBtn.className = "btn-add-crew-tab";
-  addBtn.textContent = "+ 크루 추가";
-  addBtn.addEventListener("click", () => {
-    const name = prompt("새로운 팀원 닉네임을 입력하세요 (예: 빅맥마스터, 감튀요정):");
-    if (name && name.trim()) {
-      const cleanName = name.trim();
-      if (!userList.includes(cleanName)) {
-        userList.push(cleanName);
-      }
-      currentUser = cleanName;
-      saveUsers();
-      renderCrewTabs();
-      updateCrewLabels();
-      loadLocalStorage();
-      renderCalendar();
-      calculateAll();
-      fetchSheetData();
-    }
-  });
+  addBtn.textContent = "+ 내 닉네임 등록";
+  addBtn.addEventListener("click", promptNewUser);
   crewTabsWrap.appendChild(addBtn);
 }
 
 function updateCrewLabels() {
-  currentCrewName.textContent = currentUser;
-  tableCrewName.textContent = currentUser;
+  currentCrewName.textContent = currentUser || "-";
+  tableCrewName.textContent = currentUser || "-";
 }
 
 function loadUsers() {
   const savedUsers = localStorage.getItem("mcrew_user_list");
   if (savedUsers) {
     userList = JSON.parse(savedUsers);
+  } else {
+    userList = [];
   }
+
   const lastUser = localStorage.getItem("mcrew_last_user");
   if (lastUser && userList.includes(lastUser)) {
     currentUser = lastUser;
   } else if (userList.length > 0) {
     currentUser = userList[0];
+  } else {
+    currentUser = "";
   }
-  updateCrewLabels();
 }
 
 function saveUsers() {
@@ -128,6 +157,7 @@ function getStorageKey() {
 }
 
 function loadLocalStorage() {
+  if (!currentUser) return;
   const saved = localStorage.getItem(getStorageKey());
   if (saved) {
     const parsed = JSON.parse(saved);
@@ -141,6 +171,7 @@ function loadLocalStorage() {
 }
 
 function saveLocalStorage() {
+  if (!currentUser) return;
   localStorage.setItem(
     getStorageKey(),
     JSON.stringify({ targetHours, monthData })
@@ -153,10 +184,13 @@ async function fetchSheetData() {
   syncStatusEl.className = "sync-badge saving";
 
   try {
-    const res = await fetch(`${API_URL}?user=${encodeURIComponent(currentUser)}&month=${currentYearMonth}`);
+    const url = currentUser 
+      ? `${API_URL}?user=${encodeURIComponent(currentUser)}&month=${currentYearMonth}`
+      : API_URL;
+
+    const res = await fetch(url);
     const result = await res.json();
     if (result.status === "success") {
-      // 서버의 모든 크루 목록 병합
       if (result.users && result.users.length > 0) {
         let added = false;
         result.users.forEach(u => {
@@ -167,20 +201,26 @@ async function fetchSheetData() {
         });
         if (added) {
           saveUsers();
-          renderCrewTabs();
+          if (!currentUser && userList.length > 0) {
+            currentUser = userList[0];
+          }
+          updateViewVisibility();
         }
       }
 
-      if (result.data) {
+      if (currentUser && result.data) {
         monthData = { ...monthData, ...result.data };
       }
       if (result.targetHours) {
         targetHours = result.targetHours;
         targetHoursInput.value = targetHours;
       }
-      saveLocalStorage();
-      renderCalendar();
-      calculateAll();
+
+      if (currentUser) {
+        saveLocalStorage();
+        renderCalendar();
+        calculateAll();
+      }
 
       syncStatusEl.textContent = "🍔 동기화 완료";
       syncStatusEl.className = "sync-badge";
@@ -193,6 +233,8 @@ async function fetchSheetData() {
 }
 
 function syncDayToSheet(dateStr) {
+  if (!currentUser) return;
+
   syncStatusEl.textContent = "🍟 저장 중...";
   syncStatusEl.className = "sync-badge saving";
 
@@ -208,7 +250,7 @@ function syncDayToSheet(dateStr) {
       type: record.type || "정상",
       start: record.start || "",
       end: record.end || "",
-      breakMin: record.breakMin !== undefined ? record.breakMin : 60,
+      breakMin: record.breakMin !== undefined ? Number(record.breakMin) : 60,
       totalHours: record.totalHours || 0,
       yearMonth: currentYearMonth,
       targetHours: targetHours
@@ -232,6 +274,8 @@ function syncDayToSheet(dateStr) {
 
 function renderCalendar() {
   tableBody.innerHTML = "";
+  if (!currentUser) return;
+
   const [year, month] = currentYearMonth.split("-").map(Number);
   const totalDays = new Date(year, month, 0).getDate();
   const todayStr = `${currentYear}-${currentMonth}-${String(now.getDate()).padStart(2, "0")}`;
@@ -314,6 +358,8 @@ function attachTableEvents() {
 }
 
 function calculateAll() {
+  if (!currentUser) return;
+
   const [year, month] = currentYearMonth.split("-").map(Number);
   const totalDays = new Date(year, month, 0).getDate();
   const todayDate = now.getDate();
