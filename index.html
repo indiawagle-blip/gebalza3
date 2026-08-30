@@ -92,7 +92,6 @@
       font-weight: 500;
     }
 
-    /* 닉네임 탭 래퍼 */
     .crew-tabs-wrap {
       display: flex;
       align-items: center;
@@ -130,7 +129,6 @@
       color: var(--mcd-red);
     }
 
-    /* 관리자 삭제 (X) 버튼 */
     .btn-delete-crew {
       background: rgba(0, 0, 0, 0.2);
       color: #fff;
@@ -232,6 +230,47 @@
       max-width: 1120px;
       margin: 28px auto;
       padding: 0 20px;
+    }
+
+    /* 연장근로신청 알림 배너 */
+    .overtime-alert-banner {
+      background: #fff0f0;
+      border: 2px solid var(--mcd-red);
+      border-radius: 16px;
+      padding: 14px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      animation: pulseAlert 2s infinite;
+    }
+
+    @keyframes pulseAlert {
+      0% { box-shadow: 0 0 0 0 rgba(218, 41, 28, 0.2); }
+      70% { box-shadow: 0 0 0 10px rgba(218, 41, 28, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(218, 41, 28, 0); }
+    }
+
+    .overtime-alert-text {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      color: var(--mcd-red);
+      font-size: 0.98rem;
+    }
+
+    .overtime-badge-btn {
+      background: var(--mcd-red);
+      color: #fff;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-family: 'Jua', sans-serif;
+      font-size: 0.9rem;
+      box-shadow: 0 3px 0 var(--mcd-red-dark);
     }
 
     .empty-crew-banner {
@@ -347,9 +386,14 @@
       border-color: var(--mcd-yellow);
     }
 
-    .metric-card.highlight-crew {
-      background: #fdeeee;
+    .metric-card.overtime-card {
+      background: #fff0f0;
       border-color: #f7b2aa;
+    }
+
+    .metric-card.highlight-crew {
+      background: #fdfaf4;
+      border-color: #f0e2cf;
     }
 
     .metric-title {
@@ -368,8 +412,12 @@
       color: #9c6c00;
     }
 
-    .metric-card.highlight-crew .metric-val {
+    .metric-card.overtime-card .metric-val {
       color: var(--mcd-red);
+    }
+
+    .metric-card.highlight-crew .metric-val {
+      color: #7a5300;
     }
 
     .metric-val span {
@@ -507,6 +555,15 @@
     </div>
 
     <div id="mainContentSection">
+      <!-- 연장근로 결재 신청 알림 배너 (초과 시 노출) -->
+      <div id="overtimeAlertBanner" class="overtime-alert-banner" style="display: none;">
+        <div class="overtime-alert-text">
+          <span>🚨</span>
+          <span id="overtimeAlertMsg">월 목표 근무시간을 초과했습니다. 연장근로신청서를 올려 결재를 받으세요!</span>
+        </div>
+        <span class="overtime-badge-btn">연장근로 결재 필요 📝</span>
+      </div>
+
       <section class="dashboard-panel">
         <div class="target-bar">
           <label for="targetHours">🍔 <span id="currentCrewName">-</span> 님의 목표 근무시간</label>
@@ -517,29 +574,32 @@
         </div>
 
         <div class="metrics-grid">
+          <!-- 1. 누적 근무시간 -->
           <div class="metric-card main-burger">
             <span class="metric-title">현재 누적 근무시간</span>
             <div class="metric-val"><strong id="totalWorked">0.0</strong> <span>시간</span></div>
             <p class="metric-desc">연차(+8h) / 반차(+4h) 합산 완료</p>
           </div>
 
-          <div class="metric-card">
-            <span class="metric-title">목표까지 남은 시간</span>
+          <!-- 2. 남은 시간 / 연장 초과 시간 (동적 전환) -->
+          <div class="metric-card" id="cardRemainingHours">
+            <span class="metric-title" id="titleRemainingHours">목표까지 남은 시간</span>
             <div class="metric-val"><strong id="remainingHours">0.0</strong> <span>시간</span></div>
             <p class="metric-desc" id="remainingStatus">계산 중...</p>
           </div>
 
+          <!-- 3. 남은 평일 8h 근무 시 최종 예상 연장근로시간 -->
           <div class="metric-card highlight-crew">
-            <span class="metric-title">🍟 남은 평일 1일 권장 근무시간</span>
-            <div class="metric-val"><strong id="dailyRecommended">0.0</strong> <span>시간/일</span></div>
-            <p class="metric-desc" id="remainingWorkdaysText">남은 평일: 0일 기준</p>
+            <span class="metric-title">🍟 남은 평일 8h 근무 시 예상 초과</span>
+            <div class="metric-val"><strong id="expectedOvertimeHours">0.0</strong> <span>시간 초과</span></div>
+            <p class="metric-desc" id="expectedOvertimeDesc">남은 평일: 0일 기준 예측</p>
           </div>
         </div>
       </section>
 
       <section class="table-panel">
         <div class="panel-head">
-          <h2>📋 <span id="tableCrewName">-</span> 님의 출퇴근 기록표</h2>
+          <h2>📋 <span id="tableCrewName">-</span> 님의 출퇴근 기록표 (최신일자순)</h2>
         </div>
 
         <div class="table-scroll">
