@@ -7,6 +7,7 @@ let currentYearMonth = "";
 let targetHours = 168;
 let monthData = {};
 let syncDebounceTimers = {};
+let targetHoursDebounceTimer = null;
 
 const now = new Date();
 const currentYear = now.getFullYear();
@@ -47,7 +48,6 @@ const syncStatusEl = document.getElementById("syncStatus");
 const currentCrewName = document.getElementById("currentCrewName");
 const tableCrewName = document.getElementById("tableCrewName");
 
-// 현재 시각 가져오기 (HH:mm)
 function getCurrentTimeString() {
   const d = new Date();
   const h = String(d.getHours()).padStart(2, "0");
@@ -55,7 +55,6 @@ function getCurrentTimeString() {
   return `${h}:${m}`;
 }
 
-// 오늘 날짜 포맷 (YYYY-MM-DD)
 function getTodayDateString() {
   const d = new Date();
   const yr = d.getFullYear();
@@ -64,7 +63,6 @@ function getTodayDateString() {
   return `${yr}-${mo}-${da}`;
 }
 
-// ⚡ 오늘 출근/퇴근 원클릭 등록
 function punchTime(type) {
   if (!currentUser) {
     alert("먼저 크루 닉네임을 선택하거나 등록해 주세요.");
@@ -74,7 +72,6 @@ function punchTime(type) {
   const todayStr = getTodayDateString();
   const todayMonth = todayStr.substring(0, 7);
 
-  // 만약 조회 중인 월과 오늘 월이 다르면 오늘 월로 변경
   if (currentYearMonth !== todayMonth) {
     currentYearMonth = todayMonth;
     monthPicker.value = todayMonth;
@@ -124,7 +121,6 @@ function runMiniCalculator() {
 async function init() {
   monthPicker.value = currentYearMonth;
   
-  // 오늘 날짜 헤더 표시
   if (todayDateDisplay) {
     const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
     todayDateDisplay.textContent = `(${now.getMonth() + 1}월 ${now.getDate()}일 ${dayNames[now.getDay()]}요일)`;
@@ -145,7 +141,6 @@ async function init() {
     btnRegisterMain.addEventListener("click", promptNewUser);
   }
 
-  // ⚡ 퀵 버튼 이벤트
   if (btnQuickIn) btnQuickIn.addEventListener("click", () => punchTime("IN"));
   if (btnQuickOut) btnQuickOut.addEventListener("click", () => punchTime("OUT"));
 
@@ -159,11 +154,13 @@ async function init() {
     }
   });
 
+  // 목표시간 변경 시 로컬 저장 + 시트 동기화
   targetHoursInput.addEventListener("input", (e) => {
     targetHours = parseFloat(e.target.value) || 0;
     if (currentUser) {
       saveLocalStorage();
       calculateAll();
+      syncTargetHoursToSheet();
     }
   });
 
@@ -391,6 +388,39 @@ function cleanTimeFormat(timeStr) {
   return "";
 }
 
+// 목표 근무시간 변경을 구글 시트에 실시간 동기화
+function syncTargetHoursToSheet() {
+  if (!currentUser) return;
+
+  syncStatusEl.textContent = "🍟 목표시간 저장 중...";
+  syncStatusEl.className = "sync-badge saving";
+
+  if (targetHoursDebounceTimer) {
+    clearTimeout(targetHoursDebounceTimer);
+  }
+
+  targetHoursDebounceTimer = setTimeout(async () => {
+    try {
+      await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          action: "UPDATE_TARGET",
+          user: currentUser,
+          yearMonth: currentYearMonth,
+          targetHours: targetHours
+        })
+      });
+      syncStatusEl.textContent = "🍔 시트 저장 완료";
+      syncStatusEl.className = "sync-badge";
+    } catch (err) {
+      console.error(err);
+      syncStatusEl.textContent = "⚠️ 로컬 보관";
+      syncStatusEl.className = "sync-badge";
+    }
+  }, 600);
+}
+
 async function fetchSheetData() {
   syncStatusEl.textContent = "🍟 데이터 불러오는 중...";
   syncStatusEl.className = "sync-badge saving";
@@ -442,6 +472,7 @@ async function fetchSheetData() {
         }
       }
 
+      // 서버에 저장된 목표시간 불러오기
       if (result.targetHours) {
         targetHours = result.targetHours;
         targetHoursInput.value = targetHours;
@@ -651,7 +682,6 @@ function attachTableEvents() {
     }
   });
 
-  // 오늘 행의 미니 '지금' 버튼 이벤트
   const miniIn = tableBody.querySelector(".btn-now-in");
   const miniOut = tableBody.querySelector(".btn-now-out");
   if (miniIn) miniIn.addEventListener("click", () => punchTime("IN"));
