@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>COSMIC TIME DEBT · 시공간의 공물</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800;900&family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-deep: #08090d;
+      --bg-card: rgba(18, 20, 29, 0.75);
+      --border-void: rgba(94, 234, 212, 0.15);
+      --border-glow: rgba(167, 139, 250, 0.3);
+      --neon-cyan: #5eead4;
+      --neon-purple: #c084fc;
+      --neon-acid: #a3e635;
+      --text-pure: #f8fafc;
+      --text-fog: #94a3b8;
+      --text-dark: #64748b;
+      --shadow-eldritch: 0 16px 36px -10px rgba(0, 0, 0, 0.8), 0 0 20px rgba(94, 234, 212, 0.06);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Pretendard', -apple-system, sans-serif;
+      background-color: var(--bg-deep);
+      color: var(--text-pure);
+      line-height: 1.6;
+      background-image: 
+        radial-gradient(ellipse at top, rgba(88, 28, 135, 0.18) 0%, transparent 60%),
+        radial-gradient(ellipse at bottom, rgba(13, 148, 136, 0.12) 0%, transparent 60%),
+        radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 32px 32px;
+      min-height: 100vh;
+    }
+
+    header {
+      backdrop-filter: blur(14px);
+      background-color: rgba(8, 9, 13, 0.85);
+      border-bottom: 1px solid var(--border-void);
+      padding: 16px 28px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-inner {
+      max-width: 1080px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .logo-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .void-eye {
+      font-size: 1.4rem;
+      filter: drop-shadow(0 0 8px rgba(94, 234, 212, 0.6));
+      animation: pulseEye 4s infinite ease-in-out;
+    }
+
+    @keyframes pulseEye {
+      0%, 100% { transform: scale(1); opacity: 0.9; }
+      50% { transform: scale(1.1); opacity: 1; }
+    }
+
+    .logo-title {
+      font-family: 'Cinzel', serif;
+      font-size: 1.2rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: var(--neon-cyan);
+      text-shadow: 0 0 12px rgba(94, 234, 212, 0.4);
+    }
+
+    .logo-sub {
+      font-family: 'Pretendard', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text-fog);
+      margin-left: 8px;
+      letter-spacing: 0;
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .sync-badge {
+      font-size: 0.8rem;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-fog);
+      transition: all 0.3s;
+    }
+
+    .sync-badge.saving {
+      color: var(--neon-acid);
+      border-color: var(--neon-acid);
+      box-shadow: 0 0 10px rgba(163, 230, 53, 0.3);
+    }
+
+    .sync-badge.saved {
+      color: var(--neon-cyan);
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 10px rgba(94, 234, 212, 0.2);
+    }
+
+    .month-selector {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.88rem;
+      color: var(--text-fog);
+    }
+
+    .month-selector input {
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid var(--border-void);
+      color: var(--neon-cyan);
+      padding: 6px 12px;
+      border-radius: 999px;
+      outline: none;
+      font-family: 'Cinzel', sans-serif;
+    }
+
+    .container {
+      max-width: 1080px;
+      margin: 32px auto;
+      padding: 0 20px;
+    }
+
+    .dashboard-ritual {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-void);
+      border-radius: 24px;
+      padding: 28px;
+      margin-bottom: 28px;
+      box-shadow: var(--shadow-eldritch);
+    }
+
+    .target-setting-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .ritual-label {
+      display: block;
+      font-family: 'Cinzel', serif;
+      font-size: 0.75rem;
+      letter-spacing: 2px;
+      color: var(--neon-purple);
+      margin-bottom: 2px;
+    }
+
+    .target-title-wrap label {
+      font-weight: 600;
+      font-size: 1.05rem;
+      color: var(--text-pure);
+    }
+
+    .target-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 6px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--border-glow);
+    }
+
+    .target-input-wrap input {
+      width: 90px;
+      background: transparent;
+      border: none;
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: var(--neon-cyan);
+      text-align: right;
+      outline: none;
+      font-family: 'Cinzel', sans-serif;
+    }
+
+    .unit-text {
+      font-family: 'Cinzel', serif;
+      font-size: 0.8rem;
+      color: var(--text-dark);
+      letter-spacing: 1px;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 18px;
+    }
+
+    .metric-card {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 18px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .metric-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--border-void);
+    }
+
+    .metric-card.highlight {
+      background: linear-gradient(135deg, rgba(13, 148, 136, 0.15) 0%, rgba(88, 28, 135, 0.2) 100%);
+      border: 1px solid var(--neon-cyan);
+      box-shadow: 0 0 24px rgba(94, 234, 212, 0.15);
+    }
+
+    .metric-label {
+      font-size: 0.85rem;
+      color: var(--text-fog);
+      font-weight: 600;
+    }
+
+    .metric-value {
+      font-family: 'Cinzel', serif;
+      font-size: 2.2rem;
+      color: var(--text-pure);
+    }
+
+    .metric-value.glow strong {
+      color: var(--neon-cyan);
+      text-shadow: 0 0 16px rgba(94, 234, 212, 0.6);
+    }
+
+    .metric-value.danger strong {
+      color: var(--neon-purple);
+      text-shadow: 0 0 16px rgba(192, 132, 252, 0.4);
+    }
+
+    .metric-value .unit {
+      font-size: 0.95rem;
+      color: var(--text-dark);
+    }
+
+    .metric-sub {
+      font-size: 0.82rem;
+      color: var(--text-dark);
+    }
+
+    .log-section {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-void);
+      border-radius: 24px;
+      padding: 28px;
+      box-shadow: var(--shadow-eldritch);
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .section-head h2 {
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    .guide-text {
+      font-size: 0.82rem;
+      color: var(--text-fog);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    .work-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    .work-table th, .work-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      white-space: nowrap;
+    }
+
+    .work-table th {
+      background-color: rgba(0, 0, 0, 0.4);
+      font-family: 'Cinzel', 'Pretendard', serif;
+      font-size: 0.8rem;
+      letter-spacing: 0.5px;
+      color: var(--text-fog);
+    }
+
+    .work-table tr.weekend {
+      opacity: 0.45;
+      background-color: rgba(0, 0, 0, 0.2);
+    }
+
+    .work-table tr.today {
+      background: linear-gradient(90deg, rgba(94, 234, 212, 0.08) 0%, transparent 100%);
+      border-left: 3px solid var(--neon-cyan);
+    }
+
+    select, input[type="time"], input[type="number"] {
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-pure);
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      outline: none;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+
+    select:focus, input[type="time"]:focus, input[type="number"]:focus {
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 10px rgba(94, 234, 212, 0.2);
+    }
+
+    select option {
+      background: #12141d;
+      color: #fff;
+    }
+
+    .day-total-badge {
+      font-family: 'Cinzel', serif;
+      font-weight: 700;
+      color: var(--neon-cyan);
+      font-size: 1.05rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <div class="logo-wrap">
+        <span class="void-eye">👁️</span>
+        <h1 class="logo-title">COSMIC TIME DEBT <span class="logo-sub">시공간 노예 해방 계산기</span></h1>
+      </div>
+      <div class="header-controls">
+        <span id="syncStatus" class="sync-badge">🌌 심연과 교신 준비</span>
+        <div class="month-selector">
+          <label for="monthPicker">차원 주기:</label>
+          <input type="month" id="monthPicker">
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="dashboard-ritual">
+      <div class="target-setting-card">
+        <div class="target-title-wrap">
+          <span class="ritual-label">SACRIFICE QUOTA</span>
+          <label for="targetHours">이번 달 심연에 바칠 총 시간</label>
+        </div>
+        <div class="target-input-wrap">
+          <input type="number" id="targetHours" value="168" min="0" step="0.5">
+          <span class="unit-text">HOURS</span>
+        </div>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <span class="metric-label">현재 바친 영혼의 조각</span>
+          <div class="metric-value"><strong id="totalWorked">0.0</strong> <span class="unit">h</span></div>
+          <p class="metric-sub" id="leaveDetail">봉인 해제(연차/반차) 합산</p>
+        </div>
+
+        <div class="metric-card">
+          <span class="metric-label">심연이 요구하는 잔여 시간</span>
+          <div class="metric-value danger"><strong id="remainingHours">0.0</strong> <span class="unit">h</span></div>
+          <p class="metric-sub" id="remainingStatus">영혼 계측 중...</p>
+        </div>
+
+        <div class="metric-card highlight">
+          <span class="metric-label">⚡ 일일 권장 생명력 착취량</span>
+          <div class="metric-value glow"><strong id="dailyRecommended">0.0</strong> <span class="unit">h/일</span></div>
+          <p class="metric-sub" id="remainingWorkdaysText">생존 평일: 0일</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="log-section">
+      <div class="section-head">
+        <h2>📜 날짜별 공물 헌납 의식서</h2>
+        <span class="guide-text">* 입력 즉시 구글 스프레드시트에 실시간 자동 동기화됩니다.</span>
+      </div>
+
+      <div class="table-wrap">
+        <table class="work-table">
+          <thead>
+            <tr>
+              <th>소환일</th>
+              <th>의식 형태 (상태)</th>
+              <th>영혼 소환</th>
+              <th>육체 탈출</th>
+              <th>정화(분)</th>
+              <th>인정된 공물</th>
+            </tr>
+          </thead>
+          <tbody id="workTableBody">
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>
