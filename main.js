@@ -33,6 +33,11 @@ const expectedOvertimeDescEl = document.getElementById("expectedOvertimeDesc");
 const overtimeAlertBanner = document.getElementById("overtimeAlertBanner");
 const overtimeAlertMsg = document.getElementById("overtimeAlertMsg");
 
+// 미니 계산기 DOM
+const calcHourlyWageInput = document.getElementById("calcHourlyWage");
+const calcOvertimeHoursInput = document.getElementById("calcOvertimeHours");
+const calcResultAmountEl = document.getElementById("calcResultAmount");
+
 const syncStatusEl = document.getElementById("syncStatus");
 const currentCrewName = document.getElementById("currentCrewName");
 const tableCrewName = document.getElementById("tableCrewName");
@@ -49,7 +54,6 @@ function init() {
     calculateAll();
   }
   
-  // 모바일/PC 상관없이 초기화 시 구글 시트 최신 데이터 강제 로드
   fetchSheetData();
 
   if (btnRegisterMain) {
@@ -73,6 +77,18 @@ function init() {
       calculateAll();
     }
   });
+
+  // 미니 계산기 이벤트 (실시간 연산)
+  calcHourlyWageInput.addEventListener("input", runMiniCalculator);
+  calcOvertimeHoursInput.addEventListener("input", runMiniCalculator);
+}
+
+// 미니 계산기 로직: 통상시급 * 초과시간 * 1.5
+function runMiniCalculator() {
+  const wage = parseFloat(calcHourlyWageInput.value) || 0;
+  const hours = parseFloat(calcOvertimeHoursInput.value) || 0;
+  const total = Math.round(wage * hours * 1.5);
+  calcResultAmountEl.textContent = total.toLocaleString("ko-KR");
 }
 
 function isValidCrewName(name) {
@@ -221,7 +237,6 @@ function updateCrewLabels() {
 
 function loadUsers() {
   const savedUsers = localStorage.getItem("mcrew_user_list");
-  
   if (savedUsers) {
     try {
       const parsed = JSON.parse(savedUsers);
@@ -276,13 +291,11 @@ function saveLocalStorage() {
   saveUsers();
 }
 
-// 모바일 캐시 무효화 및 데이터 완벽 동기화
 async function fetchSheetData() {
   syncStatusEl.textContent = "🍟 주문 접수 중...";
   syncStatusEl.className = "sync-badge saving";
 
   try {
-    // timestamp 캐시 방지 파라미터 추가
     const cacheBuster = `&_t=${Date.now()}`;
     const url = currentUser 
       ? `${API_URL}?user=${encodeURIComponent(currentUser)}&month=${currentYearMonth}${cacheBuster}`
@@ -292,7 +305,6 @@ async function fetchSheetData() {
     const result = await res.json();
     
     if (result.status === "success") {
-      // 1. 서버의 모든 크루 목록 병합
       if (result.users && result.users.length > 0) {
         let added = false;
         result.users.forEach(u => {
@@ -311,7 +323,6 @@ async function fetchSheetData() {
         updateViewVisibility();
       }
 
-      // 2. 서버 데이터로 로컬 상태 덮어쓰기 및 화면 즉시 갱신
       if (currentUser && result.data) {
         monthData = { ...result.data };
       }
@@ -376,7 +387,6 @@ function syncDayToSheet(dateStr) {
   }, 600);
 }
 
-// 캘린더 렌더링 (말일부터 1일까지 역순 정렬)
 function renderCalendar() {
   tableBody.innerHTML = "";
   if (!currentUser) return;
@@ -584,6 +594,7 @@ function calculateAll() {
     expectedOvertimeDescEl.textContent = `남은 평일 ${remainingWorkdaysCount}일 근무 시 목표 내 완료`;
   }
 
+  // 연장근로 알림 배너
   if (isOverTarget || expectedOvertime > 0) {
     overtimeAlertBanner.style.display = "flex";
     if (isOverTarget) {
@@ -593,6 +604,13 @@ function calculateAll() {
     }
   } else {
     overtimeAlertBanner.style.display = "none";
+  }
+
+  // 🧮 초과시간 발생 시 미니 계산기의 '초과시간' 입력창에 자동 반영 (사용자가 직접 수정한 적 없는 경우)
+  if (!calcOvertimeHoursInput.dataset.touched) {
+    const autoHours = isOverTarget ? currentOvertime : (expectedOvertime > 0 ? expectedOvertime : 0);
+    calcOvertimeHoursInput.value = autoHours > 0 ? autoHours.toFixed(1) : "";
+    runMiniCalculator();
   }
 }
 
@@ -614,5 +632,10 @@ function calculateWorkHours(startStr, endStr, breakMin = 60) {
   
   return Math.max(0, netMinutes / 60);
 }
+
+// 사용자가 직접 초과시간을 건드렸는지 추적
+calcOvertimeHoursInput.addEventListener("focus", () => {
+  calcOvertimeHoursInput.dataset.touched = "true";
+});
 
 init();

@@ -232,7 +232,6 @@
       padding: 0 20px;
     }
 
-    /* 연장근로신청 알림 배너 */
     .overtime-alert-banner {
       background: #fff0f0;
       border: 2px solid var(--mcd-red);
@@ -433,6 +432,111 @@
       font-weight: 500;
     }
 
+    /* 🧮 미니 연장근로수당 계산기 패널 */
+    .calc-panel {
+      background: #fffcf7;
+      border: 2px solid #ecdac8;
+      border-radius: 20px;
+      padding: 22px 26px;
+      margin-bottom: 26px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    }
+
+    .calc-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .calc-header h3 {
+      font-family: 'Jua', sans-serif;
+      font-size: 1.15rem;
+      color: var(--mcd-black);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .calc-header span {
+      font-size: 0.8rem;
+      color: var(--mcd-gray);
+    }
+
+    .calc-form-wrap {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .calc-input-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #ffffff;
+      border: 1.5px solid #d8ccc0;
+      padding: 6px 12px;
+      border-radius: 10px;
+    }
+
+    .calc-input-group label {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--mcd-gray);
+      white-space: nowrap;
+    }
+
+    .calc-input-group input {
+      border: none;
+      outline: none;
+      font-size: 1.05rem;
+      font-weight: 700;
+      font-family: 'Pretendard', sans-serif;
+      color: var(--mcd-black);
+      width: 100px;
+      text-align: right;
+      padding: 0;
+    }
+
+    .calc-input-group span.unit {
+      font-size: 0.85rem;
+      color: var(--mcd-gray);
+      font-weight: 600;
+    }
+
+    .calc-symbol {
+      font-family: 'Jua', sans-serif;
+      font-size: 1.1rem;
+      color: #9c6c00;
+    }
+
+    .calc-result-box {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #fdeeee;
+      border: 2px solid #f7b2aa;
+      padding: 6px 18px;
+      border-radius: 12px;
+    }
+
+    .calc-result-label {
+      font-family: 'Jua', sans-serif;
+      font-size: 0.95rem;
+      color: var(--mcd-red);
+      white-space: nowrap;
+    }
+
+    .calc-result-amount {
+      font-family: 'Jua', sans-serif;
+      font-size: 1.4rem;
+      color: var(--mcd-red);
+    }
+
     .table-panel {
       background: var(--mcd-white);
       border: 2px solid var(--mcd-border);
@@ -555,7 +659,7 @@
     </div>
 
     <div id="mainContentSection">
-      <!-- 연장근로 결재 신청 알림 배너 (초과 시 노출) -->
+      <!-- 연장근로 결재 신청 알림 배너 -->
       <div id="overtimeAlertBanner" class="overtime-alert-banner" style="display: none;">
         <div class="overtime-alert-text">
           <span>🚨</span>
@@ -574,25 +678,53 @@
         </div>
 
         <div class="metrics-grid">
-          <!-- 1. 누적 근무시간 -->
           <div class="metric-card main-burger">
             <span class="metric-title">현재 누적 근무시간</span>
             <div class="metric-val"><strong id="totalWorked">0.0</strong> <span>시간</span></div>
             <p class="metric-desc">연차(+8h) / 반차(+4h) 합산 완료</p>
           </div>
 
-          <!-- 2. 남은 시간 / 연장 초과 시간 (동적 전환) -->
           <div class="metric-card" id="cardRemainingHours">
             <span class="metric-title" id="titleRemainingHours">목표까지 남은 시간</span>
             <div class="metric-val"><strong id="remainingHours">0.0</strong> <span>시간</span></div>
             <p class="metric-desc" id="remainingStatus">계산 중...</p>
           </div>
 
-          <!-- 3. 남은 평일 8h 근무 시 최종 예상 연장근로시간 -->
           <div class="metric-card highlight-crew">
             <span class="metric-title">🍟 남은 평일 8h 근무 시 예상 초과</span>
             <div class="metric-val"><strong id="expectedOvertimeHours">0.0</strong> <span>시간 초과</span></div>
             <p class="metric-desc" id="expectedOvertimeDesc">남은 평일: 0일 기준 예측</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 🧮 미니 연장근로수당 계산기 (기록 안 남는 단순 모의계산기) -->
+      <section class="calc-panel">
+        <div class="calc-header">
+          <h3>🧮 미니 연장근로수당 모의 계산기</h3>
+          <span>* 시트에 기록되지 않으며 자유롭게 금액을 미리 계산해 볼 수 있습니다.</span>
+        </div>
+        <div class="calc-form-wrap">
+          <div class="calc-input-group">
+            <label for="calcHourlyWage">통상시급</label>
+            <input type="number" id="calcHourlyWage" placeholder="예: 15000" min="0" step="100">
+            <span class="unit">원</span>
+          </div>
+
+          <span class="calc-symbol">✕</span>
+
+          <div class="calc-input-group">
+            <label for="calcOvertimeHours">초과시간</label>
+            <input type="number" id="calcOvertimeHours" placeholder="0.0" min="0" step="0.1">
+            <span class="unit">시간</span>
+          </div>
+
+          <span class="calc-symbol">✕ 1.5배 (할증) ＝</span>
+
+          <div class="calc-result-box">
+            <span class="calc-result-label">예상 수당:</span>
+            <strong class="calc-result-amount" id="calcResultAmount">0</strong>
+            <span class="mcd-font" style="color:var(--mcd-red);">원</span>
           </div>
         </div>
       </section>
