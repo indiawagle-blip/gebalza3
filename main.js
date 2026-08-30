@@ -1,5 +1,5 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbwmWqksuzme7jmILZCJKND-jvJ9FxDdBt_IMUpPip0diOCst44WIUzYppZVr133RDLCXg/exec";
-const ADMIN_PASSWORD = "admin1234"; // 관리자 삭제 비밀번호
+const ADMIN_PASSWORD = "admin1234";
 
 let currentUser = "";
 let userList = [];
@@ -361,6 +361,7 @@ function syncDayToSheet(dateStr) {
   }, 600);
 }
 
+// 캘린더 렌더링 (말일부터 1일까지 역순 정렬)
 function renderCalendar() {
   tableBody.innerHTML = "";
   if (!currentUser) return;
@@ -369,7 +370,8 @@ function renderCalendar() {
   const totalDays = new Date(year, month, 0).getDate();
   const todayStr = `${currentYear}-${currentMonth}-${String(now.getDate()).padStart(2, "0")}`;
 
-  for (let day = 1; day <= totalDays; day++) {
+  // totalDays(말일)부터 1일까지 거꾸로 행 생성
+  for (let day = totalDays; day >= 1; day--) {
     const dateStr = `${currentYearMonth}-${String(day).padStart(2, "0")}`;
     const dateObj = new Date(year, month - 1, day);
     const dayOfWeekNum = dateObj.getDay();
@@ -469,14 +471,12 @@ function attachTableEvents() {
     input.addEventListener("input", handleInput);
     input.addEventListener("change", handleInput);
 
-    // 포커스를 벗어날 때(blur) AM/PM 미완성 상태를 오전(AM)으로 자동 완성
     if (input.type === "time") {
       input.addEventListener("blur", (e) => {
         const val = e.target.value;
         const date = e.target.dataset.date;
         const row = e.target.closest("tr");
 
-        // 만약 숫자는 들어갔으나 AM/PM이 비어 value가 안 읽힌 경우, 저장된 값 복구 및 오전 기본값 지정
         if (!val && monthData[date]) {
           const isStart = e.target.classList.contains("start-time");
           const prev = isStart ? monthData[date].start : monthData[date].end;
