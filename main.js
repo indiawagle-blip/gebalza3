@@ -23,7 +23,7 @@ const targetHoursInput = document.getElementById("targetHours");
 const tableBody = document.getElementById("workTableBody");
 const totalWorkedEl = document.getElementById("totalWorked");
 
-// 연장근로 & 계획 시뮬레이션 DOM
+// 연장근로 & 시뮬레이션 DOM
 const cardRemainingHours = document.getElementById("cardRemainingHours");
 const titleRemainingHours = document.getElementById("titleRemainingHours");
 const remainingHoursEl = document.getElementById("remainingHours");
@@ -42,7 +42,6 @@ const syncStatusEl = document.getElementById("syncStatus");
 const currentCrewName = document.getElementById("currentCrewName");
 const tableCrewName = document.getElementById("tableCrewName");
 
-// 미니 계산기 로직
 function runMiniCalculator() {
   if (!calcHourlyWageInput || !calcOvertimeHoursInput || !calcResultAmountEl) return;
   const rawWage = String(calcHourlyWageInput.value).replace(/,/g, "").trim();
@@ -55,7 +54,7 @@ function runMiniCalculator() {
   calcResultAmountEl.textContent = total.toLocaleString("ko-KR");
 }
 
-function init() {
+async function init() {
   monthPicker.value = currentYearMonth;
   
   loadUsers();
@@ -67,7 +66,8 @@ function init() {
     calculateAll();
   }
   
-  fetchSheetData();
+  // 구글 시트에서 최신 데이터 및 크루 목록 강제 로드
+  await fetchSheetData();
 
   if (btnRegisterMain) {
     btnRegisterMain.addEventListener("click", promptNewUser);
@@ -305,7 +305,6 @@ function saveLocalStorage() {
   saveUsers();
 }
 
-// 시간 문자열 정규화 (HH:mm 포맷으로 추출)
 function cleanTimeFormat(timeStr) {
   if (!timeStr) return "";
   const str = String(timeStr).trim();
@@ -316,6 +315,7 @@ function cleanTimeFormat(timeStr) {
   return "";
 }
 
+// 구글 시트에서 데이터 가져오기 (커밋/새로고침 후에도 시트 데이터 강제 복원)
 async function fetchSheetData() {
   syncStatusEl.textContent = "🍟 주문 접수 중...";
   syncStatusEl.className = "sync-badge saving";
@@ -330,6 +330,7 @@ async function fetchSheetData() {
     const result = await res.json();
     
     if (result.status === "success") {
+      // 1. 서버의 크루 목록 동기화
       if (result.users && result.users.length > 0) {
         let added = false;
         result.users.forEach(u => {
@@ -342,14 +343,16 @@ async function fetchSheetData() {
         if (added) {
           saveUsers();
         }
+        // 만약 currentUser가 비어있다면 첫 번째 크루 자동 선택
         if (!currentUser && userList.length > 0) {
           currentUser = userList[0];
+          saveUsers();
         }
         updateViewVisibility();
       }
 
-      if (currentUser && result.data) {
-        // 시트 데이터 시간 포맷 정리 후 반영
+      // 2. 서버 데이터 파싱 후 반영
+      if (result.data) {
         const formattedData = {};
         Object.keys(result.data).forEach(dateKey => {
           const item = result.data[dateKey];
@@ -361,8 +364,13 @@ async function fetchSheetData() {
             totalHours: Number(item.totalHours) || 0
           };
         });
-        monthData = formattedData;
+        
+        // 서버에 데이터가 있으면 서버 데이터로 교체
+        if (Object.keys(formattedData).length > 0) {
+          monthData = formattedData;
+        }
       }
+
       if (result.targetHours) {
         targetHours = result.targetHours;
         targetHoursInput.value = targetHours;
