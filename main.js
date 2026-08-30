@@ -23,7 +23,7 @@ const targetHoursInput = document.getElementById("targetHours");
 const tableBody = document.getElementById("workTableBody");
 const totalWorkedEl = document.getElementById("totalWorked");
 
-// 연장근로 & 시뮬레이션 DOM
+// 연장근로 & 계획 시뮬레이션 DOM
 const cardRemainingHours = document.getElementById("cardRemainingHours");
 const titleRemainingHours = document.getElementById("titleRemainingHours");
 const remainingHoursEl = document.getElementById("remainingHours");
@@ -66,7 +66,7 @@ async function init() {
     calculateAll();
   }
   
-  // 시트 데이터 호출 및 화면 복원
+  // 구글 시트에서 최신 데이터 가져와 화면 렌더링
   await fetchSheetData();
 
   if (btnRegisterMain) {
@@ -315,7 +315,7 @@ function cleanTimeFormat(timeStr) {
   return "";
 }
 
-// 구글 시트에서 최신 데이터 조회 및 화면 즉시 렌더링
+// 구글 시트 데이터 로드 및 렌더링
 async function fetchSheetData() {
   syncStatusEl.textContent = "🍟 데이터 불러오는 중...";
   syncStatusEl.className = "sync-badge saving";
@@ -350,7 +350,7 @@ async function fetchSheetData() {
         updateViewVisibility();
       }
 
-      // 2. 구글 시트 데이터 로컬 반영
+      // 2. 시트 데이터 파싱 및 로컬 데이터와 안전하게 병합
       if (result.data) {
         const formattedData = {};
         Object.keys(result.data).forEach(dateKey => {
@@ -364,7 +364,10 @@ async function fetchSheetData() {
           };
         });
 
-        monthData = formattedData;
+        // 서버 데이터가 비어있지 않은 경우에만 로컬 데이터에 덮어씀 (데이터 유실 방지)
+        if (Object.keys(formattedData).length > 0) {
+          monthData = formattedData;
+        }
       }
 
       if (result.targetHours) {
