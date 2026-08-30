@@ -1,5 +1,4 @@
-import './style.css';
-// 제공해주신 웹앱 주소 연결
+// 구글 스프레드시트 웹 앱 주소
 const API_URL = "https://script.google.com/macros/s/AKfycbwh7SouQXxArlKFzdzUa1NAgvdwKb7bXgeMV43OXDOEUkHzDItbWmFhdFMT0slZQN1YTQ/exec";
 
 let currentYearMonth = "";
@@ -26,12 +25,12 @@ const syncStatusEl = document.getElementById("syncStatus");
 function init() {
   monthPicker.value = currentYearMonth;
   
-  // 1. 로컬 저장소 먼저 로드
+  // 1. 로컬 저장소 먼저 불러오기
   loadLocalStorage();
   renderCalendar();
   calculateAll();
 
-  // 2. 구글 스프레드시트에서 최신 데이터 가져오기
+  // 2. 구글 시트에서 최신 데이터 조회
   fetchSheetData();
 
   monthPicker.addEventListener("change", (e) => {
@@ -50,7 +49,7 @@ function init() {
 }
 
 function getStorageKey() {
-  return `cosmic_debt_${currentYearMonth}`;
+  return `mcrew_shift_${currentYearMonth}`;
 }
 
 function loadLocalStorage() {
@@ -73,9 +72,9 @@ function saveLocalStorage() {
   );
 }
 
-// 구글 시트에서 이번 달 데이터 조회
+// 구글 시트 데이터 로드
 async function fetchSheetData() {
-  syncStatusEl.textContent = "⏳ 심연과 교신 중...";
+  syncStatusEl.textContent = "🍟 주문 접수 중...";
   syncStatusEl.className = "sync-badge saving";
 
   try {
@@ -93,8 +92,8 @@ async function fetchSheetData() {
       renderCalendar();
       calculateAll();
 
-      syncStatusEl.textContent = "🌌 시트 동기화 완료";
-      syncStatusEl.className = "sync-badge saved";
+      syncStatusEl.textContent = "🍔 시트 동기화 완료";
+      syncStatusEl.className = "sync-badge";
     }
   } catch (err) {
     console.error(err);
@@ -103,9 +102,9 @@ async function fetchSheetData() {
   }
 }
 
-// 구글 시트로 특정 일자 데이터 자동 전송 (디바운스 0.6초, Content-Type: text/plain)
+// 구글 시트 자동 저장 (0.6초 디바운스, text/plain)
 function syncDayToSheet(dateStr) {
-  syncStatusEl.textContent = "✍️ 각인 중...";
+  syncStatusEl.textContent = "🍟 버거 조리 중(저장)...";
   syncStatusEl.className = "sync-badge saving";
 
   if (syncDebounceTimers[dateStr]) {
@@ -131,11 +130,11 @@ function syncDayToSheet(dateStr) {
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(payload)
       });
-      syncStatusEl.textContent = "🌌 각인 완료";
-      syncStatusEl.className = "sync-badge saved";
+      syncStatusEl.textContent = "🍔 시트 저장 완료";
+      syncStatusEl.className = "sync-badge";
     } catch (err) {
       console.error(err);
-      syncStatusEl.textContent = "⚠️ 각인 실패 (로컬 보관)";
+      syncStatusEl.textContent = "⚠️ 저장 실패 (로컬 보관)";
       syncStatusEl.className = "sync-badge";
     }
   }, 600);
@@ -169,20 +168,20 @@ function renderCalendar() {
     if (isToday) tr.classList.add("today");
 
     tr.innerHTML = `
-      <td><strong>${day}일</strong> (${dayName}) ${isToday ? "👁️" : ""}</td>
+      <td><strong>${day}일</strong> (${dayName}) ${isToday ? "📍" : ""}</td>
       <td>
         <select data-date="${dateStr}" class="type-select">
-          <option value="정상" ${record.type === "정상" ? "selected" : ""}>생명력 공물 바치기 (정상)</option>
-          <option value="연차" ${record.type === "연차" ? "selected" : ""}>영혼 봉인 해제 (+8h 연차)</option>
-          <option value="오전반차" ${record.type === "오전반차" ? "selected" : ""}>오전 결계 탈출 (+4h 반차)</option>
-          <option value="오후반차" ${record.type === "오후반차" ? "selected" : ""}>오후 결계 탈출 (+4h 반차)</option>
-          <option value="휴일" ${record.type === "휴일" ? "selected" : ""}>공허의 안식일 (휴일/주말)</option>
+          <option value="정상" ${record.type === "정상" ? "selected" : ""}>🍟 정상근무</option>
+          <option value="연차" ${record.type === "연차" ? "selected" : ""}>🏖️ 연차 (+8h)</option>
+          <option value="오전반차" ${record.type === "오전반차" ? "selected" : ""}>🌅 오전반차 (+4h)</option>
+          <option value="오후반차" ${record.type === "오후반차" ? "selected" : ""}>🌇 오후반차 (+4h)</option>
+          <option value="휴일" ${record.type === "휴일" ? "selected" : ""}>☕ 휴일/주말</option>
         </select>
       </td>
       <td><input type="time" data-date="${dateStr}" class="start-time" value="${record.start || ""}" ${record.type === "연차" || record.type === "휴일" ? "disabled" : ""}></td>
       <td><input type="time" data-date="${dateStr}" class="end-time" value="${record.end || ""}" ${record.type === "연차" || record.type === "휴일" ? "disabled" : ""}></td>
-      <td><input type="number" data-date="${dateStr}" class="break-min" value="${record.breakMin ?? 60}" step="10" min="0" style="width: 55px;" ${record.type === "연차" || record.type === "휴일" ? "disabled" : ""}></td>
-      <td><span class="day-total-badge" id="badge-${dateStr}">${(record.totalHours || 0).toFixed(1)}</span> <span style="font-size:0.75rem; color:#64748b;">h</span></td>
+      <td><input type="number" data-date="${dateStr}" class="break-min" value="${record.breakMin ?? 60}" step="10" min="0" style="width: 60px;" ${record.type === "연차" || record.type === "휴일" ? "disabled" : ""}></td>
+      <td><span class="day-total-badge" id="badge-${dateStr}">${(record.totalHours || 0).toFixed(1)}</span> 시간</td>
     `;
 
     tableBody.appendChild(tr);
@@ -276,18 +275,18 @@ function calculateAll() {
   remainingHoursEl.textContent = remaining.toFixed(1);
 
   if (totalWorked >= targetHours) {
-    remainingStatus.textContent = "🌌 축하합니다. 심연의 지배로부터 해방되었습니다!";
+    remainingStatus.textContent = "🎉 이번 달 목표를 달성했습니다! 퇴근 준비 완료 🍟";
     dailyRecommendedEl.textContent = "0.0";
-    remainingWorkdaysText.textContent = `남은 생존 평일: ${futureRemainingWorkdays}일 (조기 퇴근 가능)`;
+    remainingWorkdaysText.textContent = `남은 평일: ${futureRemainingWorkdays}일 (조기 퇴근 가능)`;
   } else {
-    remainingStatus.textContent = `심연의 부채 ${(targetHours - totalWorked).toFixed(1)}시간 미납 상태`;
+    remainingStatus.textContent = `목표까지 ${(targetHours - totalWorked).toFixed(1)}시간 남음`;
     if (futureRemainingWorkdays > 0) {
       const dailyReq = remaining / futureRemainingWorkdays;
       dailyRecommendedEl.textContent = dailyReq.toFixed(1);
-      remainingWorkdaysText.textContent = `생존 평일 ${futureRemainingWorkdays}일 분할 상환 기준`;
+      remainingWorkdaysText.textContent = `남은 평일 ${futureRemainingWorkdays}일 기준`;
     } else {
       dailyRecommendedEl.textContent = remaining.toFixed(1);
-      remainingWorkdaysText.textContent = "상환할 남은 평일이 없습니다. 야근 확정!";
+      remainingWorkdaysText.textContent = "남은 평일이 없습니다.";
     }
   }
 }
